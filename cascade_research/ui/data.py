@@ -201,6 +201,94 @@ def get_entry(entry_id: str, kb_name: str | None = None) -> dict[str, Any] | Non
     return result
 
 
+@st.cache_data(ttl=60)
+def get_entry_graph(entry_id: str, kb_name: str) -> dict[str, Any]:
+    """Get graph data (nodes + edges) centered on an entry."""
+    db = _get_db()
+    if not db:
+        return {"nodes": [], "edges": []}
+
+    center = db.get_entry(entry_id, kb_name)
+    if not center:
+        return {"nodes": [], "edges": []}
+
+    outlinks = db.get_outlinks(entry_id, kb_name)
+    backlinks = db.get_backlinks(entry_id, kb_name)
+
+    nodes = {}
+    edges = []
+
+    # Center node
+    nodes[(entry_id, kb_name)] = {
+        "id": entry_id,
+        "kb_name": kb_name,
+        "title": center.get("title", entry_id),
+        "entry_type": center.get("entry_type", "unknown"),
+        "importance": center.get("importance"),
+        "is_center": True,
+    }
+
+    # Outgoing links
+    for link in outlinks:
+        key = (link["id"], link["kb_name"])
+        if key not in nodes:
+            nodes[key] = {
+                "id": link["id"],
+                "kb_name": link["kb_name"],
+                "title": link.get("title") or link["id"],
+                "entry_type": link.get("entry_type", "unknown"),
+                "importance": None,
+                "is_center": False,
+            }
+        edges.append(
+            {
+                "source": entry_id,
+                "target": link["id"],
+                "label": link.get("relation", "related"),
+            }
+        )
+
+    # Backlinks
+    for link in backlinks:
+        key = (link["id"], link["kb_name"])
+        if key not in nodes:
+            nodes[key] = {
+                "id": link["id"],
+                "kb_name": link["kb_name"],
+                "title": link.get("title") or link["id"],
+                "entry_type": link.get("entry_type", "unknown"),
+                "importance": None,
+                "is_center": False,
+            }
+        edges.append(
+            {
+                "source": link["id"],
+                "target": entry_id,
+                "label": link.get("relation", "related"),
+            }
+        )
+
+    return {"nodes": list(nodes.values()), "edges": edges}
+
+
+def save_entry(entry_id: str, kb_name: str, **updates) -> bool:
+    """Update an entry via KBService. Returns True on success."""
+    config = _get_config()
+    db = _get_db()
+    if not config or not db:
+        return False
+
+    from cascade_research.services.kb_service import KBService
+
+    svc = KBService(config, db)
+    try:
+        svc.update_entry(entry_id, kb_name, **updates)
+        clear_cache()
+        return True
+    except ValueError:
+        return False
+
+
 def clear_cache():
     """Clear all cached data."""
     st.cache_data.clear()

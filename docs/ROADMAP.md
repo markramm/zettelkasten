@@ -54,19 +54,16 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 ## Current Test Status
 
 ```
-139 tests passing
-├── test_config.py: 4 tests
-├── test_database.py: 14 tests
-├── test_models.py: 26 tests
-├── test_repository.py: 7 tests
-├── test_index.py: 5 tests
-├── test_cli.py: 7 tests
-├── test_mcp.py: 3 tests
+106 tests passing, 2 skipped (fastapi not installed)
 ├── test_agent_cli.py: 15 tests
-├── test_rest_api.py: 12 tests
+├── test_config.py: 15 tests
+├── test_integration.py: 17 tests
 ├── test_migrations.py: 11 tests
+├── test_models.py: 15 tests
 ├── test_services.py: 18 tests
-└── test_integration.py: 16 tests
+├── test_storage.py: 15 tests
+├── test_rest_api.py: 12 tests (skipped without fastapi)
+└── test_mcp_server.py: 24 tests (skipped without fastapi)
 ```
 
 ## Planned Work
@@ -111,6 +108,27 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 - [ ] **Refactor Large Files** — Deferred (functional, not urgent)
   - api.py and database.py work well as-is
 
+**Priority 4 — Code Quality & Open Source:** ✓ Complete
+- [x] **GitHub Actions CI** — `.github/workflows/ci.yml`
+  - Python 3.11/3.12/3.13 matrix testing
+  - Ruff lint + format checks
+  - mypy type checking
+  - Separate job for full test suite with optional deps
+- [x] **Open Source Governance Files**
+  - `CODE_OF_CONDUCT.md` (Contributor Covenant)
+  - `SECURITY.md` (vulnerability reporting)
+  - `.github/ISSUE_TEMPLATE/` (bug report, feature request)
+  - `.github/PULL_REQUEST_TEMPLATE.md`
+- [x] **Legacy Cleanup**
+  - Removed legacy `mcp_server.py`, `setup_mcp.py` root scripts
+  - Removed legacy test files importing old `zettelkasten_assistant`
+  - Fixed Dockerfile module reference
+  - Cleaned all stale `zettelkasten_assistant` references from docs/config
+- [x] **Deprecation Warning Fixes**
+  - sqlite3 date/datetime adapter warnings (1218 per test run → 0)
+  - Lazy imports in `server/__init__.py` for optional fastapi dependency
+  - `pytest.importorskip` for graceful test skipping without fastapi
+
 ---
 
 ### Phase 5: Web UI (Current)
@@ -123,9 +141,14 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 - [x] **Data layer** — Cached access to DB via `ui/data.py`
 - [x] **Entry point** — `crk-ui` command to launch
 
-**Not yet implemented:**
-- [ ] Relationship graph viewer (requires yFiles or streamlit-agraph)
-- [ ] Entry editor with live preview
+- [x] **Relationship graph viewer** — Interactive graph visualization using streamlit-agraph
+  - Shows outgoing links, backlinks, and related entries as nodes/edges
+  - Color-coded by entry type, sized by importance
+  - Clickable nodes navigate to entry detail
+- [x] **Entry editor with live preview** — In-browser editing on entry detail page
+  - Edit title, body (markdown), tags, importance, status
+  - Side-by-side live markdown preview
+  - Saves via KBService with automatic re-indexing
 
 ### Phase 6: Semantic Search
 

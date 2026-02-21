@@ -22,6 +22,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Basic file checks (trailing whitespace, YAML validation)
   - Pytest quick check on commit
 
+- **GitHub Actions CI** (`.github/workflows/ci.yml`)
+  - Python 3.11/3.12/3.13 matrix testing
+  - Ruff lint + format, mypy type checking
+  - Separate job for full test suite with optional deps (fastapi, streamlit)
+
+- **Open Source Governance**
+  - `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1)
+  - `SECURITY.md` (vulnerability reporting policy)
+  - GitHub issue templates (bug report, feature request)
+  - Pull request template
+
+- **Web UI: Relationship Graph Viewer** (`ui/pages/graph.py`)
+  - Interactive graph visualization using streamlit-agraph
+  - Shows outlinks, backlinks, and related entries as nodes/edges
+  - Color-coded by entry type, sized by importance
+  - Clickable nodes navigate to entry detail
+
+- **Web UI: Entry Editor** (`ui/pages/entry.py`)
+  - Edit mode toggle on entry detail page
+  - Edit title, body (markdown), tags, importance, status
+  - Side-by-side live markdown preview
+  - Saves via KBService with automatic re-indexing
+
 - **Documentation**
   - `CONTRIBUTING.md` with development setup and PR workflow
   - `CHANGELOG.md` (this file)
@@ -30,7 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Fixed FTS5 query sanitization for hyphenated terms
 - Fixed deprecation warnings (`datetime.utcnow()` → `datetime.now(timezone.utc)`)
-- Improved test coverage (94 → 123 tests)
+- Fixed sqlite3 date/datetime adapter warnings for Python 3.12+ (1218 per test run → 0)
+- Fixed Dockerfile module reference (`zettelkasten_assistant` → `cascade_research`)
+- Server `__init__.py` uses lazy imports for optional fastapi dependency
+- Test files use `pytest.importorskip` for graceful skipping without fastapi
+
+### Removed
+- Legacy `mcp_server.py` and `setup_mcp.py` root scripts (replaced by `cascade_research/server/`)
+- Legacy test files importing old `zettelkasten_assistant` package
+- Stale `zettelkasten_assistant` references from docs and pyproject.toml
 
 ## [0.2.0] - 2025-02-21
 

@@ -21,12 +21,13 @@ search_page = st.Page(str(pages_dir / "search.py"), title="Search", icon="🔍",
 timeline_page = st.Page(str(pages_dir / "timeline.py"), title="Timeline", icon="📅")
 actors_page = st.Page(str(pages_dir / "actors.py"), title="Actors", icon="👤")
 entry_page = st.Page(str(pages_dir / "entry.py"), title="Entry Detail", icon="📄")
+graph_page = st.Page(str(pages_dir / "graph.py"), title="Graph", icon="🕸")
 
 # Group pages
 pg = st.navigation(
     {
         "Explore": [search_page, timeline_page, actors_page],
-        "Detail": [entry_page],
+        "Detail": [entry_page, graph_page],
     }
 )
 
