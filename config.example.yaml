@@ -1,0 +1,115 @@
+# cascade-research Configuration
+# Copy to ~/.cascade-research/config.yaml and customize
+
+version: "1.0"
+
+# =============================================================================
+# Repositories
+# =============================================================================
+# Repositories can contain multiple KBs. This is useful for projects like
+# CascadeSeries where timeline and research-kb live in the same git repo.
+
+repositories:
+  # Example: CascadeSeries repo containing multiple KBs
+  - name: cascade-series
+    path: ~/CascadeSeries
+    remote: git@github.com:your-org/cascade-series.git
+    branch: main
+    auto_sync: true
+    auth_method: ssh  # none, ssh, github_oauth, token
+    kb_paths:
+      - timeline/hugo-site/content/events
+      - research-kb
+      - epstein_files/coverage-kb
+
+  # Example: Private research repo requiring GitHub OAuth
+  - name: private-research
+    path: ~/.cascade-research/repos/private-research
+    remote: https://github.com/your-org/private-research.git
+    auth_method: github_oauth
+
+# =============================================================================
+# Knowledge Bases
+# =============================================================================
+# KBs can be standalone or part of a repository.
+# Use 'repo' field to reference a parent repository.
+
+knowledge_bases:
+  # Standalone KB (not part of a repo)
+  - name: timeline
+    path: ~/CascadeSeries/timeline/hugo-site/content/events
+    kb_type: events
+    description: "Historical timeline (1619-2026)"
+    read_only: false
+
+  # KB within a repository
+  - name: research-kb
+    path: ~/CascadeSeries/research-kb
+    kb_type: research
+    description: "Capture Cascade research knowledge base"
+    repo: cascade-series  # References repository above
+    repo_subpath: research-kb  # Path relative to repo root
+
+  # Another KB in the same repo
+  - name: epstein-coverage
+    path: ~/CascadeSeries/epstein_files/coverage-kb
+    kb_type: research
+    description: "Epstein investigation coverage tracking"
+    repo: cascade-series
+    repo_subpath: epstein_files/coverage-kb
+
+# =============================================================================
+# Subscriptions
+# =============================================================================
+# Subscribe to remote KBs that will be cloned and auto-synced.
+
+subscriptions: []
+  # Example: Subscribe to a public KB
+  # - url: https://github.com/transparency-cascade/actors.git
+  #   local_path: ~/.cascade-research/subscribed/tc-actors
+  #   auto_sync: true
+  #   sync_interval: 3600  # seconds
+
+  # Example: Subscribe to a private KB (requires github_oauth)
+  # - url: https://github.com/your-org/private-kb.git
+  #   local_path: ~/.cascade-research/subscribed/private-kb
+  #   repo: private-research
+
+# =============================================================================
+# Settings
+# =============================================================================
+
+settings:
+  # Editor for opening files
+  default_editor: $EDITOR
+
+  # AI provider: anthropic, openai, local, stub, none
+  ai_provider: stub
+
+  # Model for AI operations
+  ai_model: claude-sonnet-4-20250514
+
+  # Max length for auto-generated summaries
+  summary_length: 280
+
+  # Enable MCP server
+  enable_mcp: true
+
+  # Global index database path
+  index_path: ~/.cascade-research/index.db
+
+  # Web server settings
+  host: 127.0.0.1
+  port: 8088
+
+# =============================================================================
+# GitHub Authentication
+# =============================================================================
+# GitHub OAuth credentials are stored separately in ~/.cascade-research/github_auth.yaml
+# for security. Run 'cascade-research auth github-setup' to configure.
+#
+# Supported auth methods for repositories:
+# - none: Public repos only
+# - ssh: Use SSH keys (~/.ssh/id_rsa or ssh-agent)
+# - github_oauth: Use OAuth token (configured via github_auth.yaml)
+# - token: Use personal access token (set GITHUB_TOKEN env var)
