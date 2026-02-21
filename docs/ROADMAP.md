@@ -68,33 +68,41 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 
 ## Planned Work
 
-### Phase 5: Web UI
+### Phase 5: Web UI (Current)
 
-- [ ] Streamlit prototype for rapid iteration
-- [ ] Search interface with faceted filtering
-- [ ] Timeline visualization
-- [ ] Relationship graph viewer
+- [x] **Streamlit app structure** — Multi-page app with navigation
+- [x] **Search page** — Full-text search with faceted filtering (tags, type, date)
+- [x] **Timeline page** — Browse events by date with importance filter
+- [x] **Actors page** — Browse actors by mention count
+- [x] **Entry detail page** — Full content view with links and sources
+- [x] **Data layer** — Cached access to DB via `ui/data.py`
+- [x] **Entry point** — `crk-ui` command to launch
+
+**Not yet implemented:**
+- [ ] Relationship graph viewer (requires yFiles or streamlit-agraph)
 - [ ] Entry editor with live preview
 
-### Phase 6: FollowTheMoney Export
-
-- [ ] FtM entity mapping for actors, organizations, events
-- [ ] Export command for Aleph/OpenAleph compatibility
-- [ ] Relationship export as edges
-
-### Phase 7: Semantic Search
+### Phase 6: Semantic Search
 
 - [ ] Vector embeddings for entries
 - [ ] sqlite-vss integration (local-first)
 - [ ] Hybrid search (FTS5 + vector similarity)
 - [ ] AI-powered query expansion
 
-### Phase 8: Collaboration
+### Phase 7: Collaboration
 
 - [ ] Multi-user attribution tracking
 - [ ] Conflict resolution for concurrent edits
 - [ ] Review workflow for entry quality
 - [ ] Change notifications
+
+### Phase 8: FollowTheMoney Export (Deferred)
+
+*Waiting on Aleph Pro subscription for API access*
+
+- [ ] FtM entity mapping for actors, organizations, events
+- [ ] Export command for Aleph/OpenAleph compatibility
+- [ ] Relationship export as edges
 
 ## Branch Status
 

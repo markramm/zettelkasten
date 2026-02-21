@@ -57,6 +57,7 @@ cascade-research = "cascade_research.cli:main"
 crk = "cascade_research.write_cli:main"
 crk-read = "cascade_research.read_cli:main"
 crk-server = "cascade_research.server.api:main"
+crk-ui = "cascade_research.ui.run:main"
 
 [project.urls]
 Homepage = "https://github.com/transparency-cascade/cascade-research"
