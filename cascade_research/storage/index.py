@@ -5,12 +5,12 @@ Handles indexing entries from file-based KBs into the SQLite FTS database.
 Supports incremental updates based on file modification times.
 """
 
-from pathlib import Path
-from typing import List, Optional, Dict, Any, Callable
+from collections.abc import Callable
 from datetime import datetime
-import hashlib
+from pathlib import Path
+from typing import Any
 
-from ..config import CascadeConfig, KBConfig, KBType, load_config
+from ..config import CascadeConfig, KBType, load_config
 from ..models import Entry, EventEntry, ResearchEntry
 from .database import CascadeDB
 from .repository import KBRepository
@@ -26,11 +26,11 @@ class IndexManager:
     - Index statistics and health checks
     """
 
-    def __init__(self, db: CascadeDB, config: Optional[CascadeConfig] = None):
+    def __init__(self, db: CascadeDB, config: CascadeConfig | None = None):
         self.db = db
         self.config = config or load_config()
 
-    def _entry_to_dict(self, entry: Entry, kb_name: str, file_path: Path) -> Dict[str, Any]:
+    def _entry_to_dict(self, entry: Entry, kb_name: str, file_path: Path) -> dict[str, Any]:
         """Convert an Entry to a dict for database storage."""
         data = {
             'id': entry.id,
@@ -80,7 +80,7 @@ class IndexManager:
     def index_kb(
         self,
         kb_name: str,
-        progress_callback: Optional[Callable[[int, int], None]] = None
+        progress_callback: Callable[[int, int], None] | None = None
     ) -> int:
         """
         Fully reindex a knowledge base.
@@ -135,8 +135,8 @@ class IndexManager:
 
     def index_all(
         self,
-        progress_callback: Optional[Callable[[str, int, int], None]] = None
-    ) -> Dict[str, int]:
+        progress_callback: Callable[[str, int, int], None] | None = None
+    ) -> dict[str, int]:
         """
         Index all configured KBs.
 
@@ -175,7 +175,7 @@ class IndexManager:
         """Remove a KB and all its entries from the index."""
         self.db.unregister_kb(kb_name)
 
-    def get_index_stats(self) -> Dict[str, Any]:
+    def get_index_stats(self) -> dict[str, Any]:
         """Get statistics about the index."""
         stats = {
             'kbs': {},
@@ -199,7 +199,7 @@ class IndexManager:
 
         return stats
 
-    def check_health(self) -> Dict[str, Any]:
+    def check_health(self) -> dict[str, Any]:
         """
         Check index health and consistency.
 
@@ -272,7 +272,7 @@ class IndexManager:
 
         return health
 
-    def sync_incremental(self, kb_name: Optional[str] = None) -> Dict[str, int]:
+    def sync_incremental(self, kb_name: str | None = None) -> dict[str, int]:
         """
         Incremental sync: only update changed/new files.
 
@@ -332,7 +332,7 @@ class IndexManager:
         return results
 
 
-def create_index(config: Optional[CascadeConfig] = None) -> IndexManager:
+def create_index(config: CascadeConfig | None = None) -> IndexManager:
     """Create an IndexManager with default configuration."""
     config = config or load_config()
     db = CascadeDB(config.settings.index_path)

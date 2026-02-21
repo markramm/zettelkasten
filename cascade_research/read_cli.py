@@ -10,10 +10,10 @@ Commands: list, search, get, timeline, tags, actors, backlinks, stats
 For write operations, use 'crk-write' (requires elevated permissions).
 """
 
-import sys
-import json
 import argparse
-from typing import Any, Dict, Optional
+import json
+import sys
+from typing import Any
 
 # Documentation base URL
 DOCS_URL = "https://github.com/markramm/zettelkasten/blob/main/docs"
@@ -49,7 +49,7 @@ class ReadOnlyCLI:
         if not self.db:
             self.db = get_db(self.config)
 
-    def output(self, data: Dict[str, Any], exit_code: int = EXIT_OK) -> int:
+    def output(self, data: dict[str, Any], exit_code: int = EXIT_OK) -> int:
         """Output JSON result."""
         result = {
             "ok": exit_code == EXIT_OK,
@@ -63,8 +63,8 @@ class ReadOnlyCLI:
         return exit_code
 
     def error(self, code: str, message: str,
-              doc_path: Optional[str] = None,
-              hint: Optional[str] = None,
+              doc_path: str | None = None,
+              hint: str | None = None,
               exit_code: int = EXIT_ERROR) -> int:
         """Output error with documentation link."""
         err = {

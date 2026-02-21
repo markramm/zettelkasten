@@ -5,11 +5,16 @@ For Events KB - structured timeline events with canonical dates.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Dict, Optional, Any
+from typing import Any
 
-from .base import Entry, parse_datetime, parse_sources, parse_links
-from ..schema import Source, Link, Provenance, EventStatus, FtMSchema, validate_date, validate_importance
+from ..schema import (
+    EventStatus,
+    FtMSchema,
+    Provenance,
+    validate_date,
+    validate_importance,
+)
+from .base import Entry, parse_datetime, parse_links, parse_sources
 
 
 @dataclass
@@ -30,8 +35,8 @@ class EventEntry(Entry):
     importance: int = 5
     status: EventStatus = EventStatus.CONFIRMED
     location: str = ""
-    actors: List[str] = field(default_factory=list)
-    capture_lanes: List[str] = field(default_factory=list)
+    actors: list[str] = field(default_factory=list)
+    capture_lanes: list[str] = field(default_factory=list)
     notes: str = ""
     academic_significance: str = ""
 
@@ -40,12 +45,12 @@ class EventEntry(Entry):
         return "event"
 
     @property
-    def ftm_schema(self) -> Optional[str]:
+    def ftm_schema(self) -> str | None:
         return FtMSchema.EVENT.value
 
-    def to_frontmatter(self) -> Dict[str, Any]:
+    def to_frontmatter(self) -> dict[str, Any]:
         """Convert to YAML frontmatter dictionary."""
-        meta: Dict[str, Any] = {
+        meta: dict[str, Any] = {
             'id': self.id,
             'date': self.date,
             'importance': self.importance,
@@ -87,7 +92,7 @@ class EventEntry(Entry):
         return meta
 
     @classmethod
-    def from_frontmatter(cls, meta: Dict[str, Any], body: str) -> 'EventEntry':
+    def from_frontmatter(cls, meta: dict[str, Any], body: str) -> 'EventEntry':
         """Create from parsed frontmatter and body."""
         # Parse status
         status_str = meta.get('status', 'confirmed')
@@ -121,7 +126,7 @@ class EventEntry(Entry):
             updated_at=parse_datetime(meta.get('updated_at')),
         )
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate event entry."""
         errors = super().validate()
 
@@ -140,9 +145,9 @@ class EventEntry(Entry):
 
         return errors
 
-    def to_ftm(self) -> Dict[str, Any]:
+    def to_ftm(self) -> dict[str, Any]:
         """Export as FollowTheMoney Event entity."""
-        properties: Dict[str, List[str]] = {
+        properties: dict[str, list[str]] = {
             'name': [self.title],
         }
 

@@ -2,9 +2,11 @@
 Timeline Page - Browse events chronologically.
 """
 
+from datetime import date
+
 import streamlit as st
-from datetime import date, timedelta
-from cascade_research.ui.data import get_timeline, get_actors
+
+from cascade_research.ui.data import get_actors, get_timeline
 
 st.header("📅 Timeline")
 

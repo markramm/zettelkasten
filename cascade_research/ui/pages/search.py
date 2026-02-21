@@ -3,7 +3,8 @@ Search Page - Full-text search with faceted filtering.
 """
 
 import streamlit as st
-from cascade_research.ui.data import search, get_tags, get_actors
+
+from cascade_research.ui.data import get_actors, get_tags, search
 
 st.header("🔍 Search")
 

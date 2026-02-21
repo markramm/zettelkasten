@@ -5,14 +5,10 @@ For Research KB - unstructured research documents (actors, organizations, themes
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Dict, Optional, Any
+from typing import Any
 
-from .base import Entry, parse_datetime, parse_sources, parse_links
-from ..schema import (
-    Source, Link, Provenance, ResearchStatus, FtMSchema,
-    RESEARCH_SUBTYPES
-)
+from ..schema import RESEARCH_SUBTYPES, FtMSchema, Provenance, ResearchStatus
+from .base import Entry, parse_datetime, parse_links, parse_sources
 
 
 @dataclass
@@ -36,7 +32,7 @@ class ResearchEntry(Entry):
     role: str = ""  # For actors: architect, operative, enabler, etc.
     era: str = ""  # Time period covered
     importance: int = 5
-    chapters: List[int] = field(default_factory=list)  # Book chapters referencing this
+    chapters: list[int] = field(default_factory=list)  # Book chapters referencing this
     research_status: ResearchStatus = ResearchStatus.STUB
     last_updated: str = ""  # YYYY-MM-DD
 
@@ -49,20 +45,20 @@ class ResearchEntry(Entry):
     source_date: str = ""
 
     # Shared with events
-    capture_lanes: List[str] = field(default_factory=list)
+    capture_lanes: list[str] = field(default_factory=list)
 
     @property
     def entry_type(self) -> str:
         return self.entry_subtype
 
     @property
-    def ftm_schema(self) -> Optional[str]:
+    def ftm_schema(self) -> str | None:
         schema = RESEARCH_SUBTYPES.get(self.entry_subtype)
         return schema.value if schema else None
 
-    def to_frontmatter(self) -> Dict[str, Any]:
+    def to_frontmatter(self) -> dict[str, Any]:
         """Convert to YAML frontmatter dictionary."""
-        meta: Dict[str, Any] = {
+        meta: dict[str, Any] = {
             'id': self.id,
             'title': self.title,
             'type': self.entry_subtype,
@@ -120,7 +116,7 @@ class ResearchEntry(Entry):
         return meta
 
     @classmethod
-    def from_frontmatter(cls, meta: Dict[str, Any], body: str) -> 'ResearchEntry':
+    def from_frontmatter(cls, meta: dict[str, Any], body: str) -> 'ResearchEntry':
         """Create from parsed frontmatter and body."""
         # Parse research status
         status_str = meta.get('research_status', 'stub')
@@ -168,7 +164,7 @@ class ResearchEntry(Entry):
             updated_at=parse_datetime(meta.get('updated_at', meta.get('date'))),
         )
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate research entry."""
         errors = super().validate()
 
@@ -180,13 +176,13 @@ class ResearchEntry(Entry):
 
         return errors
 
-    def to_ftm(self) -> Optional[Dict[str, Any]]:
+    def to_ftm(self) -> dict[str, Any] | None:
         """Export as FollowTheMoney entity."""
         ftm_schema = self.ftm_schema
         if not ftm_schema:
             return None
 
-        properties: Dict[str, List[str]] = {
+        properties: dict[str, list[str]] = {
             'name': [self.title],
         }
 

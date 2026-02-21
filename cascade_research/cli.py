@@ -4,16 +4,20 @@ cascade-research CLI
 Command-line interface for managing knowledge bases.
 """
 
-import typer
 from pathlib import Path
-from typing import Optional, List
+
+import typer
 from rich.console import Console
 from rich.table import Table
-from rich import print as rprint
 
 from .config import (
-    load_config, save_config, CascadeConfig, KBConfig, KBType, Repository,
-    auto_discover_kbs, CONFIG_FILE
+    CONFIG_FILE,
+    KBConfig,
+    KBType,
+    Repository,
+    auto_discover_kbs,
+    load_config,
+    save_config,
 )
 from .models import EventEntry, ResearchEntry
 
@@ -43,7 +47,7 @@ app.add_typer(index_app, name="index")
 
 @kb_app.command("list")
 def kb_list(
-    kb_type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by type (events/research)")
+    kb_type: str | None = typer.Option(None, "--type", "-t", help="Filter by type (events/research)")
 ):
     """List all configured knowledge bases."""
     config = load_config()
@@ -53,7 +57,7 @@ def kb_list(
 
     if not kbs:
         console.print("[yellow]No knowledge bases configured.[/yellow]")
-        console.print(f"Add a KB with: cascade-research kb add <path> --name <name>")
+        console.print("Add a KB with: cascade-research kb add <path> --name <name>")
         return
 
     table = Table(title="Knowledge Bases")
@@ -73,7 +77,7 @@ def kb_list(
 @kb_app.command("add")
 def kb_add(
     path: Path = typer.Argument(..., help="Path to the knowledge base"),
-    name: Optional[str] = typer.Option(None, "--name", "-n", help="Name for the KB"),
+    name: str | None = typer.Option(None, "--name", "-n", help="Name for the KB"),
     kb_type: str = typer.Option("research", "--type", "-t", help="KB type (events/research)"),
     description: str = typer.Option("", "--desc", "-d", help="Description"),
 ):
@@ -138,7 +142,7 @@ def kb_remove(
 
 @kb_app.command("discover")
 def kb_discover(
-    search_path: Optional[Path] = typer.Argument(None, help="Path to search for KBs"),
+    search_path: Path | None = typer.Argument(None, help="Path to search for KBs"),
     add: bool = typer.Option(False, "--add", "-a", help="Add discovered KBs to registry")
 ):
     """Auto-discover knowledge bases by finding kb.yaml files."""
@@ -180,7 +184,7 @@ def kb_discover(
 
 @kb_app.command("validate")
 def kb_validate(
-    name: Optional[str] = typer.Argument(None, help="Name of KB to validate (all if omitted)")
+    name: str | None = typer.Argument(None, help="Name of KB to validate (all if omitted)")
 ):
     """Validate knowledge base configuration and contents."""
     config = load_config()
@@ -203,7 +207,7 @@ def kb_validate(
             for error in errors:
                 console.print(f"  [red]✗[/red] {error}")
         else:
-            console.print(f"  [green]✓[/green] Configuration valid")
+            console.print("  [green]✓[/green] Configuration valid")
 
             # Count entries
             if kb.path.exists():
@@ -224,7 +228,7 @@ def kb_validate(
 @app.command("get")
 def get_entry(
     entry_id: str = typer.Argument(..., help="Entry ID"),
-    kb_name: Optional[str] = typer.Option(None, "--kb", "-k", help="KB to search in"),
+    kb_name: str | None = typer.Option(None, "--kb", "-k", help="KB to search in"),
 ):
     """Get a specific entry by ID."""
     config = load_config()
@@ -333,8 +337,8 @@ def repo_list():
 @repo_app.command("add")
 def repo_add(
     path: Path = typer.Argument(..., help="Path to the repository"),
-    name: Optional[str] = typer.Option(None, "--name", "-n", help="Name for the repo"),
-    remote: Optional[str] = typer.Option(None, "--remote", "-r", help="Git remote URL"),
+    name: str | None = typer.Option(None, "--name", "-n", help="Name for the repo"),
+    remote: str | None = typer.Option(None, "--remote", "-r", help="Git remote URL"),
     auth_method: str = typer.Option("none", "--auth", "-a", help="Auth method (none/ssh/github_oauth/token)"),
     discover: bool = typer.Option(True, "--discover/--no-discover", help="Auto-discover KBs in repo"),
 ):
@@ -407,7 +411,7 @@ def repo_remove(
 
 @repo_app.command("sync")
 def repo_sync(
-    name: Optional[str] = typer.Argument(None, help="Repository to sync (all if omitted)"),
+    name: str | None = typer.Argument(None, help="Repository to sync (all if omitted)"),
 ):
     """Sync repositories with their remotes (git pull)."""
     config = load_config()
@@ -458,8 +462,8 @@ def auth_status():
 
 @auth_app.command("github-login")
 def auth_github_login(
-    client_id: Optional[str] = typer.Option(None, "--client-id", help="OAuth App client ID"),
-    client_secret: Optional[str] = typer.Option(None, "--client-secret", help="OAuth App client secret"),
+    client_id: str | None = typer.Option(None, "--client-id", help="OAuth App client ID"),
+    client_secret: str | None = typer.Option(None, "--client-secret", help="OAuth App client secret"),
 ):
     """Authenticate with GitHub using OAuth."""
     from .github_auth import start_oauth_flow
@@ -513,12 +517,13 @@ def auth_github_setup():
 
 @index_app.command("build")
 def index_build(
-    kb_name: Optional[str] = typer.Argument(None, help="KB to index (all if omitted)"),
+    kb_name: str | None = typer.Argument(None, help="KB to index (all if omitted)"),
     force: bool = typer.Option(False, "--force", "-f", help="Force full reindex"),
 ):
     """Build or rebuild the search index."""
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+
     from .storage import CascadeDB, IndexManager
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
     config = load_config()
     db = CascadeDB(config.settings.index_path)
@@ -562,7 +567,7 @@ def index_build(
 
 @index_app.command("sync")
 def index_sync(
-    kb_name: Optional[str] = typer.Argument(None, help="KB to sync (all if omitted)"),
+    kb_name: str | None = typer.Argument(None, help="KB to sync (all if omitted)"),
 ):
     """Incremental sync: update index for changed files only."""
     from .storage import CascadeDB, IndexManager
@@ -573,7 +578,7 @@ def index_sync(
 
     results = index_mgr.sync_incremental(kb_name)
 
-    console.print(f"[green]Sync complete:[/green]")
+    console.print("[green]Sync complete:[/green]")
     console.print(f"  Added: {results['added']}")
     console.print(f"  Updated: {results['updated']}")
     console.print(f"  Removed: {results['removed']}")
@@ -661,11 +666,11 @@ def index_health():
 @app.command("search")
 def search(
     query: str = typer.Argument(..., help="Search query (FTS5 syntax supported)"),
-    kb_name: Optional[str] = typer.Option(None, "--kb", "-k", help="Search specific KB"),
-    entry_type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by type"),
-    tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag"),
-    date_from: Optional[str] = typer.Option(None, "--from", help="Events from date (YYYY-MM-DD)"),
-    date_to: Optional[str] = typer.Option(None, "--to", help="Events until date (YYYY-MM-DD)"),
+    kb_name: str | None = typer.Option(None, "--kb", "-k", help="Search specific KB"),
+    entry_type: str | None = typer.Option(None, "--type", "-t", help="Filter by type"),
+    tag: str | None = typer.Option(None, "--tag", help="Filter by tag"),
+    date_from: str | None = typer.Option(None, "--from", help="Events from date (YYYY-MM-DD)"),
+    date_to: str | None = typer.Option(None, "--to", help="Events until date (YYYY-MM-DD)"),
     limit: int = typer.Option(20, "--limit", "-n", help="Max results"),
     use_files: bool = typer.Option(False, "--files", help="Search files directly (skip index)"),
 ):
@@ -837,7 +842,7 @@ def mcp_server():
 
 @app.command("mcp-setup")
 def mcp_setup(
-    config_path: Optional[Path] = typer.Option(
+    config_path: Path | None = typer.Option(
         None, "--config", "-c",
         help="Path to Claude Code config (default: ~/.claude/claude_desktop_config.json)"
     )
@@ -860,7 +865,7 @@ def mcp_setup(
     cascade_exe = shutil.which("cascade-research")
     if not cascade_exe:
         # Try python -m
-        cascade_exe = f"python -m cascade_research.cli"
+        cascade_exe = "python -m cascade_research.cli"
         console.print("[yellow]Warning: cascade-research not in PATH, using module path[/yellow]")
 
     # Load existing config or create new

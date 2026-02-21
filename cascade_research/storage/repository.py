@@ -5,9 +5,9 @@ Handles reading and writing entries to/from markdown files.
 Each KB is a directory of markdown files with YAML frontmatter.
 """
 
+from collections.abc import Iterator
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Iterator, Tuple
-from datetime import datetime
 
 from ..config import KBConfig, KBType
 from ..models import Entry, EventEntry, ResearchEntry
@@ -37,13 +37,13 @@ class KBRepository:
             return EventEntry
         return ResearchEntry
 
-    def _get_file_path(self, entry_id: str, subdir: Optional[str] = None) -> Path:
+    def _get_file_path(self, entry_id: str, subdir: str | None = None) -> Path:
         """Get file path for an entry."""
         if subdir:
             return self.path / subdir / f"{entry_id}.md"
         return self.path / f"{entry_id}.md"
 
-    def _infer_subdir(self, entry: Entry) -> Optional[str]:
+    def _infer_subdir(self, entry: Entry) -> str | None:
         """Infer subdirectory for research entries based on type."""
         if self.kb_type == KBType.EVENTS:
             return None
@@ -84,7 +84,7 @@ class KBRepository:
 
         return False
 
-    def find_file(self, entry_id: str) -> Optional[Path]:
+    def find_file(self, entry_id: str) -> Path | None:
         """Find the file path for an entry."""
         # Check root
         root_path = self.path / f"{entry_id}.md"
@@ -101,7 +101,7 @@ class KBRepository:
 
         return None
 
-    def load(self, entry_id: str) -> Optional[Entry]:
+    def load(self, entry_id: str) -> Entry | None:
         """Load an entry by ID."""
         file_path = self.find_file(entry_id)
         if not file_path:
@@ -116,7 +116,7 @@ class KBRepository:
             print(f"[WARN] Could not load {file_path}: {e}")
             return None
 
-    def save(self, entry: Entry, subdir: Optional[str] = None) -> Path:
+    def save(self, entry: Entry, subdir: str | None = None) -> Path:
         """
         Save an entry to file.
 
@@ -136,7 +136,7 @@ class KBRepository:
         file_path = self._get_file_path(entry.id, subdir)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        entry.updated_at = datetime.utcnow()
+        entry.updated_at = datetime.now(timezone.utc)
         entry.save(file_path)
         entry.kb_name = self.name
         entry.file_path = file_path
@@ -165,7 +165,7 @@ class KBRepository:
                 continue
             yield md_file
 
-    def list_entries(self) -> Iterator[Tuple[Entry, Path]]:
+    def list_entries(self) -> Iterator[tuple[Entry, Path]]:
         """Iterate over all entries in the KB."""
         for file_path in self.list_files():
             try:
@@ -181,7 +181,7 @@ class KBRepository:
         """Count total entries in the KB."""
         return sum(1 for _ in self.list_files())
 
-    def search_files(self, query: str) -> Iterator[Tuple[Entry, Path]]:
+    def search_files(self, query: str) -> Iterator[tuple[Entry, Path]]:
         """
         Simple file-based search (fallback when DB not indexed).
 
@@ -215,7 +215,7 @@ class KBRepository:
                 if date_from <= entry.date <= date_to:
                     yield entry
 
-    def validate_all(self) -> List[Tuple[Path, List[str]]]:
+    def validate_all(self) -> list[tuple[Path, list[str]]]:
         """Validate all entries. Returns list of (path, errors) for invalid entries."""
         invalid = []
         for entry, file_path in self.list_entries():
@@ -232,14 +232,14 @@ class MultiKBRepository:
     Provides unified access to multiple KBRepositories.
     """
 
-    def __init__(self, kb_configs: List[KBConfig]):
+    def __init__(self, kb_configs: list[KBConfig]):
         self.repos = {config.name: KBRepository(config) for config in kb_configs}
 
-    def get_repo(self, kb_name: str) -> Optional[KBRepository]:
+    def get_repo(self, kb_name: str) -> KBRepository | None:
         """Get repository for a specific KB."""
         return self.repos.get(kb_name)
 
-    def load(self, entry_id: str, kb_name: Optional[str] = None) -> Optional[Entry]:
+    def load(self, entry_id: str, kb_name: str | None = None) -> Entry | None:
         """Load an entry, optionally searching across all KBs."""
         if kb_name:
             repo = self.get_repo(kb_name)
@@ -252,7 +252,7 @@ class MultiKBRepository:
                 return entry
         return None
 
-    def search(self, query: str, kb_name: Optional[str] = None) -> Iterator[Tuple[Entry, Path]]:
+    def search(self, query: str, kb_name: str | None = None) -> Iterator[tuple[Entry, Path]]:
         """Search across KBs."""
         if kb_name:
             repo = self.get_repo(kb_name)
@@ -262,7 +262,7 @@ class MultiKBRepository:
             for repo in self.repos.values():
                 yield from repo.search_files(query)
 
-    def list_all_entries(self) -> Iterator[Tuple[str, Entry, Path]]:
+    def list_all_entries(self) -> Iterator[tuple[str, Entry, Path]]:
         """List all entries across all KBs. Yields (kb_name, entry, path)."""
         for kb_name, repo in self.repos.items():
             for entry, path in repo.list_entries():

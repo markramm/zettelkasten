@@ -6,15 +6,13 @@ Supports both OAuth App and GitHub App authentication methods.
 """
 
 import os
-import json
-import webbrowser
 import secrets
 import time
+import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
-from dataclasses import dataclass
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlencode, urlparse, parse_qs
+from urllib.parse import parse_qs, urlencode, urlparse
+
 import yaml
 
 try:
@@ -23,8 +21,7 @@ try:
 except ImportError:
     HAS_HTTPX = False
 
-from .config import GitHubAuth, CONFIG_DIR, ensure_config_dir
-
+from .config import CONFIG_DIR, GitHubAuth, ensure_config_dir
 
 # GitHub OAuth endpoints
 GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
@@ -47,13 +44,13 @@ def get_auth_file_path() -> Path:
     return CONFIG_DIR / "github_auth.yaml"
 
 
-def load_github_auth() -> Optional[GitHubAuth]:
+def load_github_auth() -> GitHubAuth | None:
     """Load GitHub auth from secure file."""
     auth_file = get_auth_file_path()
     if not auth_file.exists():
         return None
     try:
-        with open(auth_file, 'r') as f:
+        with open(auth_file) as f:
             data = yaml.safe_load(f) or {}
         return GitHubAuth.from_dict(data)
     except Exception as e:
@@ -158,10 +155,10 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
 
 def start_oauth_flow(
-    client_id: Optional[str] = None,
-    client_secret: Optional[str] = None,
-    scopes: Optional[list] = None
-) -> Tuple[bool, str]:
+    client_id: str | None = None,
+    client_secret: str | None = None,
+    scopes: list | None = None
+) -> tuple[bool, str]:
     """
     Start OAuth flow to authenticate with GitHub.
 
@@ -199,7 +196,7 @@ def start_oauth_flow(
     server.oauth_state = state  # type: ignore
     server.timeout = 120  # 2 minute timeout
 
-    print(f"\nOpening browser for GitHub authentication...")
+    print("\nOpening browser for GitHub authentication...")
     print(f"If browser doesn't open, visit: {auth_url}\n")
 
     # Open browser
@@ -267,7 +264,7 @@ def start_oauth_flow(
     return True, "Authentication successful"
 
 
-def check_github_auth() -> Tuple[bool, str]:
+def check_github_auth() -> tuple[bool, str]:
     """Check if GitHub auth is valid. Returns (valid, message)."""
     auth = load_github_auth()
     if not auth:
@@ -299,7 +296,7 @@ def check_github_auth() -> Tuple[bool, str]:
         return False, f"Could not verify token: {e}"
 
 
-def get_github_token() -> Optional[str]:
+def get_github_token() -> str | None:
     """Get valid GitHub access token, or None if not authenticated."""
     auth = load_github_auth()
     if auth and auth.access_token:
@@ -311,7 +308,7 @@ def clone_private_repo(
     repo_url: str,
     local_path: Path,
     branch: str = "main"
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Clone a private repository using GitHub OAuth token.
 
@@ -351,7 +348,7 @@ def clone_private_repo(
         return False, f"Clone failed: {e}"
 
 
-def pull_repo(local_path: Path) -> Tuple[bool, str]:
+def pull_repo(local_path: Path) -> tuple[bool, str]:
     """Pull latest changes for a repository."""
     token = get_github_token()
 

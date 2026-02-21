@@ -18,15 +18,13 @@ Tools exposed:
 
 import json
 import sys
-from typing import Any, Dict, List, Optional
-from pathlib import Path
-from datetime import datetime
+from typing import Any
 
-from ..config import load_config, CascadeConfig
-from ..storage.database import CascadeDB
-from ..storage.repository import KBRepository, MultiKBRepository
-from ..storage.index import IndexManager
+from ..config import CascadeConfig, load_config
 from ..models import EventEntry, ResearchEntry
+from ..storage.database import CascadeDB
+from ..storage.index import IndexManager
+from ..storage.repository import KBRepository, MultiKBRepository
 
 
 class CascadeMCPServer:
@@ -36,7 +34,7 @@ class CascadeMCPServer:
     Provides tool-based access to knowledge bases for AI agents.
     """
 
-    def __init__(self, config: Optional[CascadeConfig] = None):
+    def __init__(self, config: CascadeConfig | None = None):
         self.config = config or load_config()
         self.db = CascadeDB(self.config.settings.index_path)
         self.repos = MultiKBRepository(self.config.knowledge_bases)
@@ -279,7 +277,7 @@ class CascadeMCPServer:
 
     # Tool handlers
 
-    def _kb_list(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_list(self, args: dict[str, Any]) -> dict[str, Any]:
         """List all knowledge bases."""
         kbs = []
         for kb in self.config.knowledge_bases:
@@ -294,7 +292,7 @@ class CascadeMCPServer:
             })
         return {"knowledge_bases": kbs}
 
-    def _kb_search(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_search(self, args: dict[str, Any]) -> dict[str, Any]:
         """Full-text search."""
         query = args.get("query", "")
         kb_name = args.get("kb_name")
@@ -320,7 +318,7 @@ class CascadeMCPServer:
             "results": results
         }
 
-    def _kb_get(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_get(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get entry by ID."""
         entry_id = args.get("entry_id")
         kb_name = args.get("kb_name")
@@ -347,7 +345,7 @@ class CascadeMCPServer:
 
         return {"entry": result}
 
-    def _kb_create(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_create(self, args: dict[str, Any]) -> dict[str, Any]:
         """Create a new entry."""
         kb_name = args.get("kb_name")
         entry_type = args.get("entry_type")
@@ -418,7 +416,7 @@ class CascadeMCPServer:
             "file_path": str(file_path)
         }
 
-    def _kb_update(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_update(self, args: dict[str, Any]) -> dict[str, Any]:
         """Update an existing entry."""
         entry_id = args.get("entry_id")
         kb_name = args.get("kb_name")
@@ -460,7 +458,7 @@ class CascadeMCPServer:
             "file_path": str(file_path)
         }
 
-    def _kb_timeline(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_timeline(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get timeline events."""
         date_from = args.get("date_from")
         date_to = args.get("date_to")
@@ -490,7 +488,7 @@ class CascadeMCPServer:
             "events": results
         }
 
-    def _kb_backlinks(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_backlinks(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get backlinks to an entry."""
         entry_id = args.get("entry_id")
         kb_name = args.get("kb_name")
@@ -503,7 +501,7 @@ class CascadeMCPServer:
             "backlinks": backlinks
         }
 
-    def _kb_tags(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_tags(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get all tags with counts."""
         kb_name = args.get("kb_name")
         prefix = args.get("prefix", "")
@@ -540,7 +538,7 @@ class CascadeMCPServer:
             "tags": tags
         }
 
-    def _kb_actors(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_actors(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get all actors with mention counts."""
         limit = args.get("limit", 100)
 
@@ -563,7 +561,7 @@ class CascadeMCPServer:
             "actors": actors
         }
 
-    def _kb_index_sync(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _kb_index_sync(self, args: dict[str, Any]) -> dict[str, Any]:
         """Sync index with file changes."""
         kb_name = args.get("kb_name")
 
@@ -578,7 +576,7 @@ class CascadeMCPServer:
 
     # MCP Protocol Implementation
 
-    def get_tools_list(self) -> List[Dict[str, Any]]:
+    def get_tools_list(self) -> list[dict[str, Any]]:
         """Return list of available tools in MCP format."""
         return [
             {
@@ -589,7 +587,7 @@ class CascadeMCPServer:
             for name, meta in self.tools.items()
         ]
 
-    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Execute a tool and return result."""
         if name not in self.tools:
             return {"error": f"Unknown tool: {name}"}
@@ -600,7 +598,7 @@ class CascadeMCPServer:
         except Exception as e:
             return {"error": str(e)}
 
-    def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
+    def handle_message(self, message: dict[str, Any]) -> dict[str, Any]:
         """Handle an MCP protocol message."""
         method = message.get("method")
         msg_id = message.get("id")

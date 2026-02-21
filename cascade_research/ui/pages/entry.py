@@ -3,6 +3,7 @@ Entry Detail Page - View full entry content.
 """
 
 import streamlit as st
+
 from cascade_research.ui.data import get_entry, search
 
 st.header("📄 Entry Detail")

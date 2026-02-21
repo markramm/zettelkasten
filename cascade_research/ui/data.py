@@ -4,9 +4,9 @@ Data loading utilities for cascade-research UI.
 Provides cached access to knowledge base data via the REST API or direct DB access.
 """
 
+from typing import Any
+
 import streamlit as st
-from typing import Optional, List, Dict, Any
-from functools import lru_cache
 
 # Try to import from cascade_research, fall back to API calls
 try:
@@ -44,7 +44,7 @@ def _get_index_mgr():
 
 
 @st.cache_data(ttl=300)
-def get_kb_list() -> List[Dict[str, Any]]:
+def get_kb_list() -> list[dict[str, Any]]:
     """Get list of knowledge bases."""
     db = _get_db()
     config = _get_config()
@@ -66,7 +66,7 @@ def get_kb_list() -> List[Dict[str, Any]]:
 
 
 @st.cache_data(ttl=300)
-def get_stats() -> Dict[str, Any]:
+def get_stats() -> dict[str, Any]:
     """Get index statistics."""
     index_mgr = _get_index_mgr()
     if not index_mgr:
@@ -77,13 +77,13 @@ def get_stats() -> Dict[str, Any]:
 @st.cache_data(ttl=60)
 def search(
     query: str,
-    kb_name: Optional[str] = None,
-    entry_type: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
+    kb_name: str | None = None,
+    entry_type: str | None = None,
+    tags: list[str] | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     limit: int = 50
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Full-text search."""
     db = _get_db()
     if not db:
@@ -112,12 +112,12 @@ def search(
 
 @st.cache_data(ttl=60)
 def get_timeline(
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     min_importance: int = 1,
-    actor: Optional[str] = None,
+    actor: str | None = None,
     limit: int = 100
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Get timeline events."""
     db = _get_db()
     if not db:
@@ -137,7 +137,7 @@ def get_timeline(
 
 
 @st.cache_data(ttl=300)
-def get_tags(kb_name: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+def get_tags(kb_name: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     """Get tags with counts."""
     db = _get_db()
     if not db:
@@ -157,7 +157,7 @@ def get_tags(kb_name: Optional[str] = None, limit: int = 100) -> List[Dict[str, 
 
 
 @st.cache_data(ttl=300)
-def get_actors(limit: int = 100) -> List[Dict[str, Any]]:
+def get_actors(limit: int = 100) -> list[dict[str, Any]]:
     """Get actors with mention counts."""
     db = _get_db()
     if not db:
@@ -176,7 +176,7 @@ def get_actors(limit: int = 100) -> List[Dict[str, Any]]:
 
 
 @st.cache_data(ttl=60)
-def get_entry(entry_id: str, kb_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def get_entry(entry_id: str, kb_name: str | None = None) -> dict[str, Any] | None:
     """Get entry by ID."""
     db = _get_db()
     config = _get_config()

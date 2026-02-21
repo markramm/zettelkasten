@@ -4,8 +4,9 @@ cascade-research Web UI - Main Application
 Streamlit multi-page app for browsing timeline events, actors, and research.
 """
 
-import streamlit as st
 from pathlib import Path
+
+import streamlit as st
 
 # Page config must be first Streamlit command
 st.set_page_config(

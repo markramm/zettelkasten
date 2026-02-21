@@ -3,6 +3,7 @@ Actors Page - Browse actors by mention count.
 """
 
 import streamlit as st
+
 from cascade_research.ui.data import get_actors, search
 
 st.header("👤 Actors")

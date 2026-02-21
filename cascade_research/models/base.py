@@ -4,15 +4,21 @@ Base Entry Model
 Abstract base for all KB entry types.
 """
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Optional, Any
-import re
+
+
+def _utcnow() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
+from typing import Any
+
 import yaml
 
-from ..schema import Source, Link, Provenance
+from ..schema import Link, Provenance, Source
 
 
 @dataclass
@@ -31,16 +37,16 @@ class Entry(ABC):
     title: str
     body: str = ""
     summary: str = ""
-    tags: List[str] = field(default_factory=list)
-    links: List[Link] = field(default_factory=list)
-    sources: List[Source] = field(default_factory=list)
-    provenance: Optional[Provenance] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    tags: list[str] = field(default_factory=list)
+    links: list[Link] = field(default_factory=list)
+    sources: list[Source] = field(default_factory=list)
+    provenance: Provenance | None = None
+    created_at: datetime = field(default_factory=_utcnow)
+    updated_at: datetime = field(default_factory=_utcnow)
 
     # KB reference (set when loaded)
     kb_name: str = ""
-    file_path: Optional[Path] = None
+    file_path: Path | None = None
 
     @property
     @abstractmethod
@@ -50,18 +56,18 @@ class Entry(ABC):
 
     @property
     @abstractmethod
-    def ftm_schema(self) -> Optional[str]:
+    def ftm_schema(self) -> str | None:
         """Return the FtM schema for export, or None if not exportable."""
         pass
 
     @abstractmethod
-    def to_frontmatter(self) -> Dict[str, Any]:
+    def to_frontmatter(self) -> dict[str, Any]:
         """Convert to YAML frontmatter dictionary."""
         pass
 
     @classmethod
     @abstractmethod
-    def from_frontmatter(cls, meta: Dict[str, Any], body: str) -> 'Entry':
+    def from_frontmatter(cls, meta: dict[str, Any], body: str) -> 'Entry':
         """Create from parsed frontmatter and body."""
         pass
 
@@ -91,7 +97,7 @@ class Entry(ABC):
         entry.file_path = path
         return entry
 
-    def save(self, path: Optional[Path] = None) -> Path:
+    def save(self, path: Path | None = None) -> Path:
         """Save entry to file."""
         if path is None:
             path = self.file_path
@@ -111,7 +117,7 @@ class Entry(ABC):
         """Add a source reference."""
         self.sources.append(Source(title=title, url=url, **kwargs))
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate entry. Returns list of errors."""
         errors = []
         if not self.id:
@@ -129,7 +135,7 @@ def parse_datetime(s: Any) -> datetime:
     if isinstance(s, datetime):
         return s
     if not s:
-        return datetime.utcnow()
+        return _utcnow()
     try:
         # Try ISO format
         if isinstance(s, str):
@@ -137,10 +143,10 @@ def parse_datetime(s: Any) -> datetime:
             return datetime.fromisoformat(s)
     except Exception:
         pass
-    return datetime.utcnow()
+    return _utcnow()
 
 
-def parse_sources(sources_data: Any) -> List[Source]:
+def parse_sources(sources_data: Any) -> list[Source]:
     """Parse sources from various formats."""
     if not sources_data:
         return []
@@ -149,7 +155,7 @@ def parse_sources(sources_data: Any) -> List[Source]:
     return []
 
 
-def parse_links(links_data: Any) -> List[Link]:
+def parse_links(links_data: Any) -> list[Link]:
     """Parse links from various formats."""
     if not links_data:
         return []

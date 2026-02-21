@@ -15,10 +15,10 @@ See: https://github.com/lobehub/lobe-chat (RAG pipeline architecture)
 """
 
 import sqlite3
-from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple
-from datetime import datetime
 from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
 from ..config import KBType
 
@@ -225,7 +225,7 @@ class CascadeDB:
         self.conn.execute("DELETE FROM kb WHERE name = ?", (name,))
         self.conn.commit()
 
-    def get_kb_stats(self, name: str) -> Optional[Dict[str, Any]]:
+    def get_kb_stats(self, name: str) -> dict[str, Any] | None:
         """Get statistics for a KB."""
         row = self.conn.execute("""
             SELECT k.*, COUNT(e.id) as actual_count
@@ -241,14 +241,14 @@ class CascadeDB:
         self.conn.execute("""
             UPDATE kb SET last_indexed = ?, entry_count = ?
             WHERE name = ?
-        """, (datetime.utcnow().isoformat(), entry_count, name))
+        """, (datetime.now(timezone.utc).isoformat(), entry_count, name))
         self.conn.commit()
 
     # =========================================================================
     # Entry CRUD
     # =========================================================================
 
-    def upsert_entry(self, entry_data: Dict[str, Any]) -> None:
+    def upsert_entry(self, entry_data: dict[str, Any]) -> None:
         """Insert or update an entry."""
         c = self.conn.cursor()
 
@@ -349,7 +349,7 @@ class CascadeDB:
         self.conn.commit()
         return result.rowcount > 0
 
-    def get_entry(self, entry_id: str, kb_name: str) -> Optional[Dict[str, Any]]:
+    def get_entry(self, entry_id: str, kb_name: str) -> dict[str, Any] | None:
         """Get a single entry with all metadata."""
         row = self.conn.execute(
             "SELECT * FROM entry WHERE id = ? AND kb_name = ?",
@@ -395,14 +395,14 @@ class CascadeDB:
     def search(
         self,
         query: str,
-        kb_name: Optional[str] = None,
-        entry_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
+        kb_name: str | None = None,
+        entry_type: str | None = None,
+        tags: list[str] | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         limit: int = 50,
         offset: int = 0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Full-text search across entries.
 
@@ -429,7 +429,7 @@ class CascadeDB:
             JOIN entry e ON entry_fts.rowid = e.rowid
             WHERE entry_fts MATCH ?
         """
-        params: List[Any] = [query]
+        params: list[Any] = [query]
 
         if kb_name:
             sql += " AND e.kb_name = ?"
@@ -471,9 +471,9 @@ class CascadeDB:
     def search_by_tag(
         self,
         tag: str,
-        kb_name: Optional[str] = None,
+        kb_name: str | None = None,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search entries by tag."""
         sql = """
             SELECT e.* FROM entry e
@@ -481,7 +481,7 @@ class CascadeDB:
             JOIN tag t ON et.tag_id = t.id
             WHERE t.name = ?
         """
-        params: List[Any] = [tag]
+        params: list[Any] = [tag]
 
         if kb_name:
             sql += " AND e.kb_name = ?"
@@ -496,16 +496,16 @@ class CascadeDB:
     def search_by_actor(
         self,
         actor_name: str,
-        kb_name: Optional[str] = None,
+        kb_name: str | None = None,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search entries mentioning an actor."""
         sql = """
             SELECT e.* FROM entry e
             JOIN entry_actor ea ON e.id = ea.entry_id AND e.kb_name = ea.kb_name
             WHERE ea.actor_name LIKE ?
         """
-        params: List[Any] = [f"%{actor_name}%"]
+        params: list[Any] = [f"%{actor_name}%"]
 
         if kb_name:
             sql += " AND e.kb_name = ?"
@@ -521,15 +521,15 @@ class CascadeDB:
         self,
         date_from: str,
         date_to: str,
-        kb_name: Optional[str] = None,
+        kb_name: str | None = None,
         limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search events within a date range."""
         sql = """
             SELECT * FROM entry
             WHERE date >= ? AND date <= ?
         """
-        params: List[Any] = [date_from, date_to]
+        params: list[Any] = [date_from, date_to]
 
         if kb_name:
             sql += " AND kb_name = ?"
@@ -545,7 +545,7 @@ class CascadeDB:
     # Graph Queries (Links)
     # =========================================================================
 
-    def get_backlinks(self, entry_id: str, kb_name: str) -> List[Dict[str, Any]]:
+    def get_backlinks(self, entry_id: str, kb_name: str) -> list[dict[str, Any]]:
         """Get entries that link TO this entry."""
         rows = self.conn.execute("""
             SELECT e.id, e.kb_name, e.title, e.entry_type, l.inverse_relation as relation, l.note
@@ -555,7 +555,7 @@ class CascadeDB:
         """, (entry_id, kb_name)).fetchall()
         return [dict(r) for r in rows]
 
-    def get_outlinks(self, entry_id: str, kb_name: str) -> List[Dict[str, Any]]:
+    def get_outlinks(self, entry_id: str, kb_name: str) -> list[dict[str, Any]]:
         """Get entries that this entry links TO."""
         rows = self.conn.execute("""
             SELECT l.target_id as id, l.target_kb as kb_name, e.title, e.entry_type, l.relation, l.note
@@ -565,7 +565,7 @@ class CascadeDB:
         """, (entry_id, kb_name)).fetchall()
         return [dict(r) for r in rows]
 
-    def get_related(self, entry_id: str, kb_name: str, depth: int = 1) -> List[Dict[str, Any]]:
+    def get_related(self, entry_id: str, kb_name: str, depth: int = 1) -> list[dict[str, Any]]:
         """Get related entries (both directions) up to N hops."""
         # For now, just do 1 hop (direct connections)
         backlinks = self.get_backlinks(entry_id, kb_name)
@@ -586,7 +586,7 @@ class CascadeDB:
     # Analytics
     # =========================================================================
 
-    def get_all_tags(self, kb_name: Optional[str] = None) -> List[Tuple[str, int]]:
+    def get_all_tags(self, kb_name: str | None = None) -> list[tuple[str, int]]:
         """Get all tags with counts."""
         if kb_name:
             rows = self.conn.execute("""
@@ -607,14 +607,14 @@ class CascadeDB:
             """).fetchall()
         return [(r['name'], r['count']) for r in rows]
 
-    def get_most_linked(self, kb_name: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_most_linked(self, kb_name: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """Get entries with most incoming links (most referenced)."""
         sql = """
             SELECT e.id, e.kb_name, e.title, e.entry_type, COUNT(l.id) as link_count
             FROM entry e
             LEFT JOIN link l ON e.id = l.target_id AND e.kb_name = l.target_kb
         """
-        params: List[Any] = []
+        params: list[Any] = []
 
         if kb_name:
             sql += " WHERE e.kb_name = ?"
@@ -626,7 +626,7 @@ class CascadeDB:
         rows = self.conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
-    def get_orphans(self, kb_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_orphans(self, kb_name: str | None = None) -> list[dict[str, Any]]:
         """Get entries with no links (neither incoming nor outgoing)."""
         sql = """
             SELECT e.id, e.kb_name, e.title, e.entry_type
@@ -634,7 +634,7 @@ class CascadeDB:
             WHERE e.id NOT IN (SELECT source_id FROM link WHERE source_kb = e.kb_name)
               AND e.id NOT IN (SELECT target_id FROM link WHERE target_kb = e.kb_name)
         """
-        params: List[Any] = []
+        params: list[Any] = []
 
         if kb_name:
             sql += " AND e.kb_name = ?"
@@ -645,18 +645,18 @@ class CascadeDB:
 
     def get_timeline(
         self,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         min_importance: int = 1,
-        kb_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        kb_name: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get timeline events ordered by date."""
         sql = """
             SELECT id, kb_name, title, date, importance, location, summary
             FROM entry
             WHERE date IS NOT NULL AND importance >= ?
         """
-        params: List[Any] = [min_importance]
+        params: list[Any] = [min_importance]
 
         if kb_name:
             sql += " AND kb_name = ?"

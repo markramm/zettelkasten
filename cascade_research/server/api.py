@@ -17,18 +17,17 @@ Endpoints:
 - POST /index/sync - Trigger index sync
 """
 
-from typing import Optional, List
-from datetime import datetime
-from fastapi import FastAPI, HTTPException, Query, Depends
+from datetime import datetime, timezone
+
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from ..config import load_config, CascadeConfig, KBType
-from ..storage.database import CascadeDB
-from ..storage.repository import KBRepository
-from ..storage.index import IndexManager
+from ..config import CascadeConfig, load_config
 from ..models import EventEntry, ResearchEntry
-
+from ..storage.database import CascadeDB
+from ..storage.index import IndexManager
+from ..storage.repository import KBRepository
 
 # =============================================================================
 # Pydantic Models for API
@@ -45,7 +44,7 @@ class KBInfo(BaseModel):
 
 class KBListResponse(BaseModel):
     """Response for listing knowledge bases."""
-    kbs: List[KBInfo]
+    kbs: list[KBInfo]
     total: int
 
 
@@ -55,37 +54,37 @@ class SearchResult(BaseModel):
     kb_name: str
     entry_type: str
     title: str
-    snippet: Optional[str] = None
-    date: Optional[str] = None
-    importance: Optional[int] = None
-    tags: List[str] = []
+    snippet: str | None = None
+    date: str | None = None
+    importance: int | None = None
+    tags: list[str] = []
 
 
 class SearchResponse(BaseModel):
     """Response for search queries."""
     query: str
     count: int
-    results: List[SearchResult]
+    results: list[SearchResult]
 
 
 class EntryBase(BaseModel):
     """Base fields for entries."""
     title: str
-    body: Optional[str] = None
-    tags: List[str] = []
-    importance: Optional[int] = Field(None, ge=1, le=10)
+    body: str | None = None
+    tags: list[str] = []
+    importance: int | None = Field(None, ge=1, le=10)
 
 
 class EventCreate(EntryBase):
     """Fields for creating an event."""
     date: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$')
-    actors: List[str] = []
+    actors: list[str] = []
     status: str = "confirmed"
 
 
 class ActorCreate(EntryBase):
     """Fields for creating an actor."""
-    role: Optional[str] = None
+    role: str | None = None
 
 
 class EntryResponse(BaseModel):
@@ -94,19 +93,19 @@ class EntryResponse(BaseModel):
     kb_name: str
     entry_type: str
     title: str
-    body: Optional[str] = None
-    summary: Optional[str] = None
-    date: Optional[str] = None
-    importance: Optional[int] = None
-    status: Optional[str] = None
-    tags: List[str] = []
-    actors: List[str] = []
-    sources: List[dict] = []
-    outlinks: List[dict] = []
-    backlinks: List[dict] = []
+    body: str | None = None
+    summary: str | None = None
+    date: str | None = None
+    importance: int | None = None
+    status: str | None = None
+    tags: list[str] = []
+    actors: list[str] = []
+    sources: list[dict] = []
+    outlinks: list[dict] = []
+    backlinks: list[dict] = []
     file_path: str
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class TimelineEvent(BaseModel):
@@ -115,16 +114,16 @@ class TimelineEvent(BaseModel):
     date: str
     title: str
     importance: int
-    actors: List[str] = []
-    tags: List[str] = []
+    actors: list[str] = []
+    tags: list[str] = []
 
 
 class TimelineResponse(BaseModel):
     """Response for timeline queries."""
     count: int
-    date_from: Optional[str]
-    date_to: Optional[str]
-    events: List[TimelineEvent]
+    date_from: str | None
+    date_to: str | None
+    events: list[TimelineEvent]
 
 
 class TagCount(BaseModel):
@@ -136,7 +135,7 @@ class TagCount(BaseModel):
 class TagsResponse(BaseModel):
     """Response for tags list."""
     count: int
-    tags: List[TagCount]
+    tags: list[TagCount]
 
 
 class ActorCount(BaseModel):
@@ -148,7 +147,7 @@ class ActorCount(BaseModel):
 class ActorsResponse(BaseModel):
     """Response for actors list."""
     count: int
-    actors: List[ActorCount]
+    actors: list[ActorCount]
 
 
 class StatsResponse(BaseModel):
@@ -191,7 +190,7 @@ class ErrorResponse(BaseModel):
     """Error response."""
     code: str
     message: str
-    hint: Optional[str] = None
+    hint: str | None = None
 
 
 # =============================================================================
@@ -220,9 +219,9 @@ app.add_middleware(
 # Dependencies
 # =============================================================================
 
-_config: Optional[CascadeConfig] = None
-_db: Optional[CascadeDB] = None
-_index_mgr: Optional[IndexManager] = None
+_config: CascadeConfig | None = None
+_db: CascadeDB | None = None
+_index_mgr: IndexManager | None = None
 
 
 def get_config() -> CascadeConfig:
@@ -276,11 +275,11 @@ def list_kbs(
 @app.get("/search", response_model=SearchResponse, tags=["Search"])
 def search(
     q: str = Query(..., min_length=1, description="Search query"),
-    kb: Optional[str] = Query(None, description="Limit to specific KB"),
-    type: Optional[str] = Query(None, description="Filter by entry type"),
-    tags: Optional[str] = Query(None, description="Comma-separated tags"),
-    date_from: Optional[str] = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
-    date_to: Optional[str] = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
+    kb: str | None = Query(None, description="Limit to specific KB"),
+    type: str | None = Query(None, description="Filter by entry type"),
+    tags: str | None = Query(None, description="Comma-separated tags"),
+    date_from: str | None = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
+    date_to: str | None = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
     limit: int = Query(20, ge=1, le=100),
     db: CascadeDB = Depends(get_db)
 ):
@@ -324,7 +323,7 @@ def search(
 @app.get("/entries/{entry_id}", response_model=EntryResponse, tags=["Entries"])
 def get_entry(
     entry_id: str,
-    kb: Optional[str] = Query(None, description="KB name (optional)"),
+    kb: str | None = Query(None, description="KB name (optional)"),
     with_links: bool = Query(False, description="Include links"),
     config: CascadeConfig = Depends(get_config),
     db: CascadeDB = Depends(get_db)
@@ -364,12 +363,12 @@ def create_entry(
     kb: str = Query(..., description="KB name"),
     entry_type: str = Query(..., description="Entry type: event, actor, organization, theme"),
     title: str = Query(..., description="Entry title"),
-    body: Optional[str] = Query(None),
-    date: Optional[str] = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
-    importance: Optional[int] = Query(None, ge=1, le=10),
-    tags: Optional[str] = Query(None, description="Comma-separated tags"),
-    actors: Optional[str] = Query(None, description="Comma-separated actors"),
-    role: Optional[str] = Query(None, description="Role (for actor entries)"),
+    body: str | None = Query(None),
+    date: str | None = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
+    importance: int | None = Query(None, ge=1, le=10),
+    tags: str | None = Query(None, description="Comma-separated tags"),
+    actors: str | None = Query(None, description="Comma-separated actors"),
+    role: str | None = Query(None, description="Role (for actor entries)"),
     config: CascadeConfig = Depends(get_config),
     db: CascadeDB = Depends(get_db),
     index_mgr: IndexManager = Depends(get_index_mgr)
@@ -404,21 +403,35 @@ def create_entry(
         )
         entry.tags = tag_list
         entry.actors = actor_list
-    else:
+    elif entry_type == "actor":
         entry = ResearchEntry.create_actor(
             name=title,
             role=role or "",
             importance=importance or 5
-        ) if entry_type == "actor" else ResearchEntry.create(
-            entry_type=entry_type,
+        )
+        entry.tags = tag_list
+    elif entry_type == "organization":
+        entry = ResearchEntry.create_organization(
+            name=title,
+            importance=importance or 5
+        )
+        entry.body = body or ""
+        entry.tags = tag_list
+    else:
+        # Generic research entry (theme, etc.)
+        import re
+        entry_id = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+        entry = ResearchEntry(
+            id=entry_id,
             title=title,
             body=body or "",
+            entry_subtype=entry_type,
             importance=importance or 5
         )
         entry.tags = tag_list
 
     file_path = repo.save(entry)
-    index_mgr.index_entry(entry, kb_config)
+    index_mgr.index_entry(entry, kb, file_path)
 
     return CreateResponse(
         created=True,
@@ -432,10 +445,10 @@ def create_entry(
 def update_entry(
     entry_id: str,
     kb: str = Query(..., description="KB name"),
-    title: Optional[str] = Query(None),
-    body: Optional[str] = Query(None),
-    importance: Optional[int] = Query(None, ge=1, le=10),
-    tags: Optional[str] = Query(None),
+    title: str | None = Query(None),
+    body: str | None = Query(None),
+    importance: int | None = Query(None, ge=1, le=10),
+    tags: str | None = Query(None),
     config: CascadeConfig = Depends(get_config),
     db: CascadeDB = Depends(get_db),
     index_mgr: IndexManager = Depends(get_index_mgr)
@@ -452,7 +465,7 @@ def update_entry(
         raise HTTPException(status_code=404, detail={"code": "KB_NOT_FOUND", "message": f"KB '{kb}' not found"})
 
     repo = KBRepository(kb_config)
-    entry = repo.get(entry_id)
+    entry = repo.load(entry_id)
 
     if not entry:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": f"Entry '{entry_id}' not found"})
@@ -462,14 +475,14 @@ def update_entry(
         entry.title = title
     if body is not None:
         entry.body = body
-    if importance is not None:
+    if importance is not None and hasattr(entry, 'importance'):
         entry.importance = importance
     if tags is not None:
         entry.tags = [t.strip() for t in tags.split(",")]
 
-    entry.updated_at = datetime.utcnow()
-    repo.save(entry)
-    index_mgr.index_entry(entry, kb_config)
+    entry.updated_at = datetime.now(timezone.utc)
+    file_path = repo.save(entry)
+    index_mgr.index_entry(entry, kb, file_path)
 
     return UpdateResponse(updated=True, id=entry_id)
 
@@ -502,10 +515,10 @@ def delete_entry(
 
 @app.get("/timeline", response_model=TimelineResponse, tags=["Timeline"])
 def get_timeline(
-    date_from: Optional[str] = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
-    date_to: Optional[str] = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
-    min_importance: Optional[int] = Query(None, ge=1, le=10),
-    actor: Optional[str] = Query(None, description="Filter by actor"),
+    date_from: str | None = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
+    date_to: str | None = Query(None, pattern=r'^\d{4}-\d{2}-\d{2}$'),
+    min_importance: int | None = Query(None, ge=1, le=10),
+    actor: str | None = Query(None, description="Filter by actor"),
     limit: int = Query(50, ge=1, le=500),
     db: CascadeDB = Depends(get_db)
 ):
@@ -539,7 +552,7 @@ def get_timeline(
 
 @app.get("/tags", response_model=TagsResponse, tags=["Tags & Actors"])
 def get_tags(
-    kb: Optional[str] = Query(None, description="Filter by KB"),
+    kb: str | None = Query(None, description="Filter by KB"),
     limit: int = Query(100, ge=1, le=1000),
     db: CascadeDB = Depends(get_db)
 ):
@@ -607,7 +620,7 @@ def sync_index(
 @app.get("/health", tags=["Admin"])
 def health_check():
     """Health check endpoint."""
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 # =============================================================================

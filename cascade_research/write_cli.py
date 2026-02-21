@@ -10,11 +10,10 @@ For read-only access (safe for untrusted agents), use 'crk-read'.
 Documentation: https://github.com/markramm/zettelkasten/blob/main/docs/ARCHITECTURE.md
 """
 
-import sys
-import json
 import argparse
-from pathlib import Path
-from typing import Any, Dict, Optional
+import json
+import sys
+from typing import Any
 
 DOCS_URL = "https://github.com/markramm/zettelkasten/blob/main/docs"
 VERSION = "0.1.0"
@@ -60,7 +59,7 @@ class FullAccessCLI:
         if not self.db:
             self.db = get_db(self.config)
 
-    def output(self, data: Dict[str, Any], exit_code: int = EXIT_OK) -> int:
+    def output(self, data: dict[str, Any], exit_code: int = EXIT_OK) -> int:
         """Output JSON result."""
         result = {"ok": exit_code == EXIT_OK, "code": exit_code}
         if exit_code == EXIT_OK:
@@ -71,8 +70,8 @@ class FullAccessCLI:
         return exit_code
 
     def error(self, code: str, message: str,
-              doc_path: Optional[str] = None,
-              hint: Optional[str] = None,
+              doc_path: str | None = None,
+              hint: str | None = None,
               exit_code: int = EXIT_ERROR) -> int:
         """Output structured error with docs link."""
         err = {"error": {"code": code, "message": message}}

@@ -8,11 +8,12 @@ Configuration is loaded from:
 3. Individual kb.yaml files in each KB root
 """
 
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Literal
-from enum import Enum
 import os
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Literal
+
 import yaml
 from dotenv import load_dotenv
 
@@ -33,17 +34,17 @@ class KBConfig:
     kb_type: KBType
     description: str = ""
     read_only: bool = False
-    remote: Optional[str] = None  # Git remote URL
+    remote: str | None = None  # Git remote URL
 
     # Repository reference (for multi-KB repos)
-    repo: Optional[str] = None  # Name of parent repo (if KB is inside a repo)
+    repo: str | None = None  # Name of parent repo (if KB is inside a repo)
     repo_subpath: str = ""  # Relative path within repo (e.g., "timeline/events")
 
     # Loaded from kb.yaml if present
-    schema: Optional[Dict[str, Any]] = None
-    types: Optional[Dict[str, Any]] = None  # For research KB
-    policies: Optional[Dict[str, Any]] = None
-    ftm: Optional[Dict[str, Any]] = None
+    schema: dict[str, Any] | None = None
+    types: dict[str, Any] | None = None  # For research KB
+    policies: dict[str, Any] | None = None
+    ftm: dict[str, Any] | None = None
 
     def __post_init__(self):
         self.path = Path(self.path).expanduser().resolve()
@@ -65,7 +66,7 @@ class KBConfig:
     def load_kb_yaml(self) -> bool:
         """Load kb.yaml if it exists. Returns True if loaded."""
         if self.kb_yaml_path.exists():
-            with open(self.kb_yaml_path, 'r') as f:
+            with open(self.kb_yaml_path) as f:
                 data = yaml.safe_load(f) or {}
             self.schema = data.get('schema')
             self.types = data.get('types')
@@ -74,7 +75,7 @@ class KBConfig:
             return True
         return False
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate KB configuration. Returns list of errors."""
         errors = []
         if not self.path.exists():
@@ -93,17 +94,17 @@ class Repository:
     """
     name: str  # Unique identifier for this repo
     path: Path  # Local path where repo is/will be cloned
-    remote: Optional[str] = None  # Git remote URL (https or ssh)
+    remote: str | None = None  # Git remote URL (https or ssh)
     branch: str = "main"
     auto_sync: bool = True
     sync_interval: int = 3600  # seconds
 
     # Authentication
     auth_method: Literal["none", "ssh", "github_oauth", "token"] = "none"
-    github_app_id: Optional[str] = None  # For GitHub App auth
+    github_app_id: str | None = None  # For GitHub App auth
 
     # KBs defined within this repo (populated after discovery)
-    kb_paths: List[str] = field(default_factory=list)  # Relative paths to KBs
+    kb_paths: list[str] = field(default_factory=list)  # Relative paths to KBs
 
     def __post_init__(self):
         self.path = Path(self.path).expanduser().resolve()
@@ -120,7 +121,7 @@ class Repository:
             return False
         return "github.com" in self.remote
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate repository configuration."""
         errors = []
         if not self.path.exists() and not self.remote:
@@ -138,19 +139,19 @@ class GitHubAuth:
     Supports both OAuth App flow and GitHub App installation tokens.
     """
     # OAuth App credentials (for user authentication)
-    client_id: Optional[str] = None
-    client_secret: Optional[str] = None
-    access_token: Optional[str] = None
-    refresh_token: Optional[str] = None
-    token_expiry: Optional[str] = None  # ISO datetime
+    client_id: str | None = None
+    client_secret: str | None = None
+    access_token: str | None = None
+    refresh_token: str | None = None
+    token_expiry: str | None = None  # ISO datetime
 
     # GitHub App credentials (for app-based auth)
-    app_id: Optional[str] = None
-    private_key_path: Optional[Path] = None
-    installation_id: Optional[str] = None
+    app_id: str | None = None
+    private_key_path: Path | None = None
+    installation_id: str | None = None
 
     # Scopes requested
-    scopes: List[str] = field(default_factory=lambda: ["repo", "read:user"])
+    scopes: list[str] = field(default_factory=lambda: ["repo", "read:user"])
 
     def __post_init__(self):
         if self.private_key_path:
@@ -181,7 +182,7 @@ class GitHubAuth:
         """Check if GitHub App credentials are configured."""
         return bool(self.app_id and self.private_key_path and self.installation_id)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary (excluding secrets for display)."""
         return {
             'client_id': self.client_id,
@@ -194,7 +195,7 @@ class GitHubAuth:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'GitHubAuth':
+    def from_dict(cls, data: dict[str, Any]) -> 'GitHubAuth':
         """Create from dictionary."""
         return cls(
             client_id=data.get('client_id'),
@@ -216,7 +217,7 @@ class Subscription:
     local_path: Path
     auto_sync: bool = True
     sync_interval: int = 3600  # seconds
-    repo: Optional[str] = None  # Reference to parent Repository name
+    repo: str | None = None  # Reference to parent Repository name
 
     def __post_init__(self):
         self.local_path = Path(self.local_path).expanduser().resolve()
@@ -259,14 +260,14 @@ class CascadeConfig:
     - Subscriptions to remote KBs
     """
     version: str = "1.0"
-    knowledge_bases: List[KBConfig] = field(default_factory=list)
-    repositories: List[Repository] = field(default_factory=list)
-    subscriptions: List[Subscription] = field(default_factory=list)
-    github_auth: Optional[GitHubAuth] = None
+    knowledge_bases: list[KBConfig] = field(default_factory=list)
+    repositories: list[Repository] = field(default_factory=list)
+    subscriptions: list[Subscription] = field(default_factory=list)
+    github_auth: GitHubAuth | None = None
     settings: Settings = field(default_factory=Settings)
 
-    _kb_by_name: Dict[str, KBConfig] = field(default_factory=dict, repr=False)
-    _repo_by_name: Dict[str, Repository] = field(default_factory=dict, repr=False)
+    _kb_by_name: dict[str, KBConfig] = field(default_factory=dict, repr=False)
+    _repo_by_name: dict[str, Repository] = field(default_factory=dict, repr=False)
 
     def __post_init__(self):
         self._rebuild_index()
@@ -276,11 +277,11 @@ class CascadeConfig:
         self._kb_by_name = {kb.name: kb for kb in self.knowledge_bases}
         self._repo_by_name = {repo.name: repo for repo in self.repositories}
 
-    def get_kb(self, name: str) -> Optional[KBConfig]:
+    def get_kb(self, name: str) -> KBConfig | None:
         """Get a KB by name."""
         return self._kb_by_name.get(name)
 
-    def list_kbs(self, kb_type: Optional[KBType] = None) -> List[KBConfig]:
+    def list_kbs(self, kb_type: KBType | None = None) -> list[KBConfig]:
         """List all KBs, optionally filtered by type."""
         if kb_type is None:
             return self.knowledge_bases
@@ -302,7 +303,7 @@ class CascadeConfig:
         return True
 
     # Repository management
-    def get_repo(self, name: str) -> Optional[Repository]:
+    def get_repo(self, name: str) -> Repository | None:
         """Get a repository by name."""
         return self._repo_by_name.get(name)
 
@@ -321,11 +322,11 @@ class CascadeConfig:
         self.repositories.remove(repo)
         return True
 
-    def get_kbs_in_repo(self, repo_name: str) -> List[KBConfig]:
+    def get_kbs_in_repo(self, repo_name: str) -> list[KBConfig]:
         """Get all KBs that belong to a repository."""
         return [kb for kb in self.knowledge_bases if kb.repo == repo_name]
 
-    def validate(self) -> Dict[str, List[str]]:
+    def validate(self) -> dict[str, list[str]]:
         """Validate all KBs and repos. Returns dict of name -> errors."""
         results = {}
         for kb in self.knowledge_bases:
@@ -338,9 +339,9 @@ class CascadeConfig:
                 results[f"repo:{repo.name}"] = errors
         return results
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for YAML serialization."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             'version': self.version,
             'knowledge_bases': [
                 {
@@ -349,9 +350,9 @@ class CascadeConfig:
                     'kb_type': kb.kb_type.value,
                     'description': kb.description,
                     'read_only': kb.read_only,
-                    **(({'remote': kb.remote} if kb.remote else {})),
-                    **(({'repo': kb.repo} if kb.repo else {})),
-                    **(({'repo_subpath': kb.repo_subpath} if kb.repo_subpath else {})),
+                    **({'remote': kb.remote} if kb.remote else {}),
+                    **({'repo': kb.repo} if kb.repo else {}),
+                    **({'repo_subpath': kb.repo_subpath} if kb.repo_subpath else {}),
                 }
                 for kb in self.knowledge_bases
             ],
@@ -367,8 +368,8 @@ class CascadeConfig:
                     'auto_sync': repo.auto_sync,
                     'sync_interval': repo.sync_interval,
                     'auth_method': repo.auth_method,
-                    **(({'github_app_id': repo.github_app_id} if repo.github_app_id else {})),
-                    **(({'kb_paths': repo.kb_paths} if repo.kb_paths else {})),
+                    **({'github_app_id': repo.github_app_id} if repo.github_app_id else {}),
+                    **({'kb_paths': repo.kb_paths} if repo.kb_paths else {}),
                 }
                 for repo in self.repositories
             ]
@@ -379,7 +380,7 @@ class CascadeConfig:
                 'local_path': str(sub.local_path),
                 'auto_sync': sub.auto_sync,
                 'sync_interval': sub.sync_interval,
-                **(({'repo': sub.repo} if sub.repo else {})),
+                **({'repo': sub.repo} if sub.repo else {}),
             }
             for sub in self.subscriptions
         ]
@@ -405,7 +406,7 @@ class CascadeConfig:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'CascadeConfig':
+    def from_dict(cls, data: dict[str, Any]) -> 'CascadeConfig':
         """Create from dictionary (YAML loaded)."""
         knowledge_bases = []
         for kb_data in data.get('knowledge_bases', []):
@@ -449,7 +450,7 @@ class CascadeConfig:
         github_auth_file = CONFIG_DIR / "github_auth.yaml"
         if github_auth_file.exists():
             try:
-                with open(github_auth_file, 'r') as f:
+                with open(github_auth_file) as f:
                     auth_data = yaml.safe_load(f) or {}
                 github_auth = GitHubAuth.from_dict(auth_data)
             except Exception:
@@ -497,7 +498,7 @@ def load_config() -> CascadeConfig:
     ensure_config_dir()
 
     if CONFIG_FILE.exists():
-        with open(CONFIG_FILE, 'r') as f:
+        with open(CONFIG_FILE) as f:
             data = yaml.safe_load(f) or {}
         config = CascadeConfig.from_dict(data)
     else:
@@ -519,7 +520,7 @@ def save_config(config: CascadeConfig) -> None:
         yaml.safe_dump(config.to_dict(), f, sort_keys=False, default_flow_style=False)
 
 
-def auto_discover_kbs(search_paths: Optional[List[Path]] = None) -> List[KBConfig]:
+def auto_discover_kbs(search_paths: list[Path] | None = None) -> list[KBConfig]:
     """
     Auto-discover KBs by looking for kb.yaml files.
 
@@ -540,7 +541,7 @@ def auto_discover_kbs(search_paths: Optional[List[Path]] = None) -> List[KBConfi
         # Look for kb.yaml files
         for kb_yaml in search_path.rglob('kb.yaml'):
             try:
-                with open(kb_yaml, 'r') as f:
+                with open(kb_yaml) as f:
                     data = yaml.safe_load(f) or {}
 
                 name = data.get('name', kb_yaml.parent.name)
@@ -565,7 +566,7 @@ def auto_discover_kbs(search_paths: Optional[List[Path]] = None) -> List[KBConfi
 
 
 # Legacy compatibility: expose commonly used values at module level
-def get_notes_dir(kb_name: Optional[str] = None) -> Path:
+def get_notes_dir(kb_name: str | None = None) -> Path:
     """Get notes directory for a KB (legacy compatibility)."""
     config = load_config()
     if kb_name:
@@ -578,7 +579,7 @@ def get_notes_dir(kb_name: Optional[str] = None) -> Path:
     return Path('./data/notes').resolve()
 
 
-def get_db_path(kb_name: Optional[str] = None) -> Path:
+def get_db_path(kb_name: str | None = None) -> Path:
     """Get database path for a KB (legacy compatibility)."""
     config = load_config()
     if kb_name:

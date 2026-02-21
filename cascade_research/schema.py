@@ -5,11 +5,11 @@ Defines schemas for different KB types (events, research) and their subtypes.
 Provides validation and FtM mapping.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Set
-from enum import Enum
-from datetime import datetime
 import re
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 
 class VerificationStatus(str, Enum):
@@ -53,7 +53,7 @@ class FtMSchema(str, Enum):
 
 
 # Research KB subtypes and their FtM mappings
-RESEARCH_SUBTYPES: Dict[str, Optional[FtMSchema]] = {
+RESEARCH_SUBTYPES: dict[str, FtMSchema | None] = {
     "actor": FtMSchema.PERSON,
     "organization": FtMSchema.ORGANIZATION,
     "event": FtMSchema.EVENT,
@@ -77,18 +77,18 @@ class Source:
     title: str
     url: str
     outlet: str = ""
-    date: Optional[str] = None
+    date: str | None = None
     author: str = ""
     source_type: str = "news"  # news, academic, court_filing, government, leaked, interview, social_media
     verified: bool = False
-    verified_date: Optional[str] = None
+    verified_date: str | None = None
     verified_by: str = ""
     archive_url: str = ""
-    key_facts_confirmed: List[str] = field(default_factory=list)
+    key_facts_confirmed: list[str] = field(default_factory=list)
     confidence: str = "unverified"  # high, medium, low, unverified
     access: str = "public"  # public, paywalled, restricted, offline
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         result = {'title': self.title, 'url': self.url}
         if self.outlet:
@@ -116,7 +116,7 @@ class Source:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Source':
+    def from_dict(cls, data: dict[str, Any]) -> 'Source':
         """Create from dictionary."""
         return cls(
             title=data.get('title', ''),
@@ -147,7 +147,7 @@ class Link:
     note: str = ""  # Optional description
     kb: str = ""  # Target KB (if cross-KB link)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         result = {'target': self.target, 'relation': self.relation}
         if self.note:
@@ -157,7 +157,7 @@ class Link:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Link':
+    def from_dict(cls, data: dict[str, Any]) -> 'Link':
         """Create from dictionary."""
         # Handle legacy format {to: id, type: relation}
         if 'to' in data:
@@ -175,7 +175,7 @@ class Link:
 
 
 # Relationship types with inverses and FtM mappings
-RELATIONSHIP_TYPES: Dict[str, Dict[str, Any]] = {
+RELATIONSHIP_TYPES: dict[str, dict[str, Any]] = {
     # Entity relationships (FtM-compatible)
     "owns": {"inverse": "owned_by", "ftm": FtMSchema.OWNERSHIP},
     "owned_by": {"inverse": "owns", "ftm": FtMSchema.OWNERSHIP},
@@ -230,7 +230,7 @@ def get_inverse_relation(relation: str) -> str:
     return "related_to"
 
 
-def get_ftm_schema_for_relation(relation: str) -> Optional[FtMSchema]:
+def get_ftm_schema_for_relation(relation: str) -> FtMSchema | None:
     """Get the FtM schema for a relationship type."""
     if relation in RELATIONSHIP_TYPES:
         return RELATIONSHIP_TYPES[relation].get("ftm")
@@ -248,14 +248,14 @@ class Provenance:
     created_date: str = ""
     last_modified_by: str = ""
     last_modified_date: str = ""
-    contributors: List[str] = field(default_factory=list)
+    contributors: list[str] = field(default_factory=list)
     agent_version: str = ""  # For AI agent contributions
     agent_confidence: float = 1.0
     requires_human_review: bool = False
-    auto_generated_fields: List[str] = field(default_factory=list)
-    human_verified_fields: List[str] = field(default_factory=list)
+    auto_generated_fields: list[str] = field(default_factory=list)
+    human_verified_fields: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary (only non-empty fields)."""
         result = {}
         if self.created_by:
@@ -280,7 +280,7 @@ class Provenance:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Provenance':
+    def from_dict(cls, data: dict[str, Any]) -> 'Provenance':
         """Create from dictionary."""
         return cls(
             created_by=data.get('created_by', ''),
