@@ -1,7 +1,6 @@
-
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Optional
+
 
 @dataclass
 class Note:
@@ -9,14 +8,15 @@ class Note:
     title: str
     body: str
     summary: str = ""  # Concise summary of the note content
-    tags: List[str] = field(default_factory=list)
-    links: List[Dict] = field(default_factory=list)  # {to: str, type: str}
+    tags: list[str] = field(default_factory=list)
+    links: list[dict] = field(default_factory=list)  # {to: str, type: str}
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
     status: str = "SEED"  # SEED|DRAFT|REFINED|PERMANENT
 
     def to_markdown(self) -> str:
         import yaml
+
         meta = {
             "id": self.id,
             "title": self.title,
@@ -32,18 +32,23 @@ class Note:
 
     @staticmethod
     def from_markdown(text: str) -> "Note":
-        import re, yaml
-        parts = re.split(r'^---\s*$', text, flags=re.MULTILINE)
+        import re
+
+        import yaml
+
+        parts = re.split(r"^---\s*$", text, flags=re.MULTILINE)
         if len(parts) < 3:
             raise ValueError("Invalid note format: missing YAML frontmatter.")
         meta = yaml.safe_load(parts[1]) or {}
         body = parts[2].strip()
         from datetime import datetime
+
         def parse_dt(s):
             try:
-                return datetime.fromisoformat(s.replace('Z','+00:00'))
+                return datetime.fromisoformat(s.replace("Z", "+00:00"))
             except Exception:
                 return datetime.utcnow()
+
         return Note(
             id=str(meta.get("id")),
             title=meta.get("title", ""),

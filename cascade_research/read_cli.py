@@ -29,10 +29,13 @@ EXIT_ERROR = 99
 
 def get_config():
     from .config import load_config
+
     return load_config()
+
 
 def get_db(config):
     from .storage.database import CascadeDB
+
     return CascadeDB(config.settings.index_path)
 
 
@@ -62,10 +65,14 @@ class ReadOnlyCLI:
         print(json.dumps(result, indent=2, default=str))
         return exit_code
 
-    def error(self, code: str, message: str,
-              doc_path: str | None = None,
-              hint: str | None = None,
-              exit_code: int = EXIT_ERROR) -> int:
+    def error(
+        self,
+        code: str,
+        message: str,
+        doc_path: str | None = None,
+        hint: str | None = None,
+        exit_code: int = EXIT_ERROR,
+    ) -> int:
         """Output error with documentation link."""
         err = {
             "error": {
@@ -90,13 +97,15 @@ class ReadOnlyCLI:
         kbs = []
         for kb in self.config.knowledge_bases:
             stats = self.db.get_kb_stats(kb.name)
-            kbs.append({
-                "name": kb.name,
-                "type": kb.kb_type.value,
-                "path": str(kb.path),
-                "entries": stats.get('entry_count', 0) if stats else 0,
-                "indexed": bool(stats.get('last_indexed')) if stats else False
-            })
+            kbs.append(
+                {
+                    "name": kb.name,
+                    "type": kb.kb_type.value,
+                    "path": str(kb.path),
+                    "entries": stats.get("entry_count", 0) if stats else 0,
+                    "indexed": bool(stats.get("last_indexed")) if stats else False,
+                }
+            )
 
         return self.output({"kbs": kbs, "total": len(kbs)})
 
@@ -107,12 +116,13 @@ class ReadOnlyCLI:
         terms containing special characters, or wrap the whole query.
         """
         # If it looks like the user is using FTS5 operators, don't modify
-        if any(op in query.upper() for op in [' AND ', ' OR ', ' NOT ', '"']):
+        if any(op in query.upper() for op in [" AND ", " OR ", " NOT ", '"']):
             return query
         # Otherwise, quote terms with hyphens to prevent syntax errors
         import re
+
         # Quote any word containing a hyphen
-        return re.sub(r'(\S*-\S*)', r'"\1"', query)
+        return re.sub(r"(\S*-\S*)", r'"\1"', query)
 
     def cmd_search(self, args) -> int:
         """Full-text search."""
@@ -124,7 +134,7 @@ class ReadOnlyCLI:
                 "Search query is required",
                 doc_path="ARCHITECTURE.md#search",
                 hint="Usage: crk-read search 'your query'",
-                exit_code=EXIT_USAGE
+                exit_code=EXIT_USAGE,
             )
 
         # Check index
@@ -135,7 +145,7 @@ class ReadOnlyCLI:
                 "Search index is empty. Build it first.",
                 doc_path="ARCHITECTURE.md#indexing",
                 hint="Run: crk index build",
-                exit_code=EXIT_INDEX_EMPTY
+                exit_code=EXIT_INDEX_EMPTY,
             )
 
         try:
@@ -148,18 +158,17 @@ class ReadOnlyCLI:
                 tags=tags,
                 date_from=args.date_from,
                 date_to=args.date_to,
-                limit=args.limit
+                limit=args.limit,
             )
 
-            return self.output({
-                "query": args.query,
-                "count": len(results),
-                "results": results
-            })
+            return self.output({"query": args.query, "count": len(results), "results": results})
         except Exception as e:
-            return self.error("SEARCH_FAILED", str(e),
-                            hint="Try simpler query or use quotes for phrases",
-                            exit_code=EXIT_ERROR)
+            return self.error(
+                "SEARCH_FAILED",
+                str(e),
+                hint="Try simpler query or use quotes for phrases",
+                exit_code=EXIT_ERROR,
+            )
 
     def cmd_get(self, args) -> int:
         """Get entry by ID."""
@@ -182,12 +191,12 @@ class ReadOnlyCLI:
                 "NOT_FOUND",
                 f"Entry '{entry_id}' not found",
                 hint=f"Search for it: crk-read search '{entry_id}'",
-                exit_code=EXIT_NOT_FOUND
+                exit_code=EXIT_NOT_FOUND,
             )
 
         if args.with_links:
-            result['outlinks'] = self.db.get_outlinks(entry_id, result['kb_name'])
-            result['backlinks'] = self.db.get_backlinks(entry_id, result['kb_name'])
+            result["outlinks"] = self.db.get_outlinks(entry_id, result["kb_name"])
+            result["backlinks"] = self.db.get_backlinks(entry_id, result["kb_name"])
 
         return self.output({"entry": result})
 
@@ -196,26 +205,20 @@ class ReadOnlyCLI:
         self._ensure_db()
 
         results = self.db.get_timeline(
-            date_from=args.date_from,
-            date_to=args.date_to,
-            min_importance=args.min_importance or 1
+            date_from=args.date_from, date_to=args.date_to, min_importance=args.min_importance or 1
         )
 
         if args.actor:
             actor_lower = args.actor.lower()
             results = [
-                r for r in results
-                if any(actor_lower in a.lower() for a in (r.get('actors') or []))
+                r for r in results if any(actor_lower in a.lower() for a in (r.get("actors") or []))
             ]
 
-        results = results[:args.limit]
+        results = results[: args.limit]
 
-        return self.output({
-            "count": len(results),
-            "from": args.date_from,
-            "to": args.date_to,
-            "events": results
-        })
+        return self.output(
+            {"count": len(results), "from": args.date_from, "to": args.date_to, "events": results}
+        )
 
     def cmd_tags(self, args) -> int:
         """Get tags with counts."""
@@ -231,7 +234,7 @@ class ReadOnlyCLI:
         params = (args.kb, args.limit) if args.kb else (args.limit,)
         rows = self.db.conn.execute(query, params).fetchall()
 
-        tags = [{"name": r['name'], "count": r['count']} for r in rows]
+        tags = [{"name": r["name"], "count": r["count"]} for r in rows]
         return self.output({"count": len(tags), "tags": tags})
 
     def cmd_actors(self, args) -> int:
@@ -247,7 +250,7 @@ class ReadOnlyCLI:
         """
         rows = self.db.conn.execute(query, (args.limit,)).fetchall()
 
-        actors = [{"name": r['actor_name'], "mentions": r['mentions']} for r in rows]
+        actors = [{"name": r["actor_name"], "mentions": r["mentions"]} for r in rows]
         return self.output({"count": len(actors), "actors": actors})
 
     def cmd_backlinks(self, args) -> int:
@@ -259,21 +262,19 @@ class ReadOnlyCLI:
                 "MISSING_KB",
                 "KB name is required for backlinks",
                 hint="Add --kb <name>",
-                exit_code=EXIT_USAGE
+                exit_code=EXIT_USAGE,
             )
 
         backlinks = self.db.get_backlinks(args.entry_id, args.kb)
-        return self.output({
-            "entry": args.entry_id,
-            "kb": args.kb,
-            "count": len(backlinks),
-            "backlinks": backlinks
-        })
+        return self.output(
+            {"entry": args.entry_id, "kb": args.kb, "count": len(backlinks), "backlinks": backlinks}
+        )
 
     def cmd_stats(self, args) -> int:
         """Get index statistics."""
         self._ensure_db()
         from .storage.index import IndexManager
+
         index_mgr = IndexManager(self.db, self.config)
 
         stats = index_mgr.get_index_stats()
@@ -306,7 +307,7 @@ Examples:
 
 Output: JSON with {ok, code, data} or {ok, code, error}
 Docs: https://github.com/markramm/zettelkasten/blob/main/docs/ARCHITECTURE.md
-"""
+""",
     )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")

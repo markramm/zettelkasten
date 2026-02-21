@@ -1,8 +1,7 @@
-
 from pathlib import Path
-from typing import List
-from . import utils
+
 from ..models.note import Note
+
 
 class NoteRepository:
     def __init__(self, notes_dir: Path):
@@ -27,11 +26,11 @@ class NoteRepository:
         if p.exists():
             p.unlink()
 
-    def list_all(self) -> List[Note]:
+    def list_all(self) -> list[Note]:
         notes = []
         for md in self.notes_dir.glob("*.md"):
             try:
-                notes.append(Note.from_markdown(md.read_text(encoding='utf-8')))
+                notes.append(Note.from_markdown(md.read_text(encoding="utf-8")))
             except Exception as e:
                 # Skip malformed notes but continue
                 print(f"[WARN] Could not parse {md.name}: {e}")

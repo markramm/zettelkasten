@@ -1,4 +1,3 @@
-
 def inverse_link_type(t: str) -> str:
     mapping = {
         "extends": "is_extended_by",

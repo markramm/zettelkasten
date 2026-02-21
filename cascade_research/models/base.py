@@ -7,18 +7,18 @@ Abstract base for all KB entry types.
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
-
-def _utcnow() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
 from typing import Any
 
 import yaml
 
 from ..schema import Link, Provenance, Source
+
+
+def _utcnow() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(UTC)
 
 
 @dataclass
@@ -33,6 +33,7 @@ class Entry(ABC):
     - Sources and provenance
     - Timestamps
     """
+
     id: str
     title: str
     body: str = ""
@@ -67,7 +68,7 @@ class Entry(ABC):
 
     @classmethod
     @abstractmethod
-    def from_frontmatter(cls, meta: dict[str, Any], body: str) -> 'Entry':
+    def from_frontmatter(cls, meta: dict[str, Any], body: str) -> "Entry":
         """Create from parsed frontmatter and body."""
         pass
 
@@ -78,9 +79,9 @@ class Entry(ABC):
         return f"---\n{yaml_front}\n---\n\n{self.body}\n"
 
     @classmethod
-    def from_markdown(cls, text: str) -> 'Entry':
+    def from_markdown(cls, text: str) -> "Entry":
         """Parse from markdown string with YAML frontmatter."""
-        parts = re.split(r'^---\s*$', text, flags=re.MULTILINE, maxsplit=2)
+        parts = re.split(r"^---\s*$", text, flags=re.MULTILINE, maxsplit=2)
         if len(parts) < 3:
             raise ValueError("Invalid entry format: missing YAML frontmatter")
 
@@ -90,9 +91,9 @@ class Entry(ABC):
         return cls.from_frontmatter(meta, body)
 
     @classmethod
-    def load(cls, path: Path) -> 'Entry':
+    def load(cls, path: Path) -> "Entry":
         """Load entry from file."""
-        text = path.read_text(encoding='utf-8')
+        text = path.read_text(encoding="utf-8")
         entry = cls.from_markdown(text)
         entry.file_path = path
         return entry
@@ -105,7 +106,7 @@ class Entry(ABC):
             raise ValueError("No path specified and no file_path set")
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.to_markdown(), encoding='utf-8')
+        path.write_text(self.to_markdown(), encoding="utf-8")
         self.file_path = path
         return path
 
@@ -139,7 +140,7 @@ def parse_datetime(s: Any) -> datetime:
     try:
         # Try ISO format
         if isinstance(s, str):
-            s = s.replace('Z', '+00:00')
+            s = s.replace("Z", "+00:00")
             return datetime.fromisoformat(s)
     except Exception:
         pass
@@ -151,7 +152,10 @@ def parse_sources(sources_data: Any) -> list[Source]:
     if not sources_data:
         return []
     if isinstance(sources_data, list):
-        return [Source.from_dict(s) if isinstance(s, dict) else Source(title=str(s), url='') for s in sources_data]
+        return [
+            Source.from_dict(s) if isinstance(s, dict) else Source(title=str(s), url="")
+            for s in sources_data
+        ]
     return []
 
 
@@ -160,5 +164,8 @@ def parse_links(links_data: Any) -> list[Link]:
     if not links_data:
         return []
     if isinstance(links_data, list):
-        return [Link.from_dict(l) if isinstance(l, dict) else Link(target=str(l), relation='related') for l in links_data]
+        return [
+            Link.from_dict(l) if isinstance(l, dict) else Link(target=str(l), relation="related")
+            for l in links_data
+        ]
     return []

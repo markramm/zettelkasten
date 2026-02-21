@@ -28,7 +28,7 @@ if entry_id:
         st.error(f"Entry '{entry_id}' not found.")
     else:
         # Entry header
-        st.title(entry['title'])
+        st.title(entry["title"])
 
         # Metadata badges
         col1, col2, col3, col4 = st.columns(4)
@@ -37,40 +37,40 @@ if entry_id:
         with col2:
             st.markdown(f"**Type:** {entry['entry_type']}")
         with col3:
-            if entry.get('date'):
+            if entry.get("date"):
                 st.markdown(f"**Date:** {entry['date']}")
         with col4:
-            if entry.get('importance'):
+            if entry.get("importance"):
                 st.markdown(f"**Importance:** {entry['importance']}/10")
 
         st.divider()
 
         # Tags
-        if entry.get('tags'):
-            st.markdown("**Tags:** " + " ".join([f"`{tag}`" for tag in entry['tags']]))
+        if entry.get("tags"):
+            st.markdown("**Tags:** " + " ".join([f"`{tag}`" for tag in entry["tags"]]))
 
         # Actors
-        if entry.get('actors'):
-            st.markdown("**Actors:** " + ", ".join(entry['actors']))
+        if entry.get("actors"):
+            st.markdown("**Actors:** " + ", ".join(entry["actors"]))
 
         st.divider()
 
         # Body content
         st.markdown("### Content")
-        if entry.get('body'):
-            st.markdown(entry['body'])
+        if entry.get("body"):
+            st.markdown(entry["body"])
         else:
             st.info("No content available.")
 
         # Sources
-        if entry.get('sources'):
+        if entry.get("sources"):
             st.divider()
             st.markdown("### Sources")
-            for i, source in enumerate(entry['sources'], 1):
+            for i, source in enumerate(entry["sources"], 1):
                 if isinstance(source, dict):
-                    title = source.get('title', f'Source {i}')
-                    url = source.get('url', '')
-                    outlet = source.get('outlet', '')
+                    title = source.get("title", f"Source {i}")
+                    url = source.get("url", "")
+                    outlet = source.get("outlet", "")
                     if url:
                         st.markdown(f"{i}. [{title}]({url}) - {outlet}")
                     else:
@@ -82,24 +82,24 @@ if entry_id:
         col1, col2 = st.columns(2)
 
         with col1:
-            if entry.get('outlinks'):
+            if entry.get("outlinks"):
                 st.divider()
                 st.markdown("### Outgoing Links")
-                for link in entry['outlinks']:
-                    target_id = link.get('target_id', link.get('to', ''))
-                    relation = link.get('relation', link.get('type', 'related'))
+                for link in entry["outlinks"]:
+                    target_id = link.get("target_id", link.get("to", ""))
+                    relation = link.get("relation", link.get("type", "related"))
                     if st.button(f"→ {target_id} ({relation})", key=f"out_{target_id}"):
                         st.session_state.selected_entry_id = target_id
                         st.session_state.selected_entry_kb = None
                         st.rerun()
 
         with col2:
-            if entry.get('backlinks'):
+            if entry.get("backlinks"):
                 st.divider()
                 st.markdown("### Backlinks")
-                for link in entry['backlinks']:
-                    source_id = link.get('source_id', '')
-                    relation = link.get('relation', 'links to')
+                for link in entry["backlinks"]:
+                    source_id = link.get("source_id", "")
+                    relation = link.get("relation", "links to")
                     if st.button(f"← {source_id} ({relation})", key=f"back_{source_id}"):
                         st.session_state.selected_entry_id = source_id
                         st.session_state.selected_entry_kb = None
@@ -110,17 +110,17 @@ if entry_id:
         st.markdown("### Related Entries")
 
         # Search for related entries using title keywords
-        title_words = entry['title'].split()[:3]
+        title_words = entry["title"].split()[:3]
         if title_words:
             related_query = " ".join(title_words)
             related = search(related_query, limit=5)
-            related = [r for r in related if r['id'] != entry_id][:4]
+            related = [r for r in related if r["id"] != entry_id][:4]
 
             if related:
                 for r in related:
                     if st.button(f"📄 {r['title']}", key=f"related_{r['id']}"):
-                        st.session_state.selected_entry_id = r['id']
-                        st.session_state.selected_entry_kb = r['kb_name']
+                        st.session_state.selected_entry_id = r["id"]
+                        st.session_state.selected_entry_kb = r["kb_name"]
                         st.rerun()
             else:
                 st.info("No related entries found.")

@@ -2,16 +2,16 @@
 Tests for storage layer (database, repository, index).
 """
 
-import pytest
-from pathlib import Path
 import tempfile
-from datetime import datetime
+from pathlib import Path
 
-from cascade_research.storage.database import CascadeDB
-from cascade_research.storage.repository import KBRepository
-from cascade_research.storage.index import IndexManager
-from cascade_research.config import KBConfig, KBType, CascadeConfig, Settings
+import pytest
+
+from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
 from cascade_research.models import EventEntry, ResearchEntry
+from cascade_research.storage.database import CascadeDB
+from cascade_research.storage.index import IndexManager
+from cascade_research.storage.repository import KBRepository
 
 
 class TestCascadeDB:
@@ -29,16 +29,14 @@ class TestCascadeDB:
     def test_create_database(self, db):
         """Test database creation."""
         # Tables should exist
-        tables = db.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        tables = db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         table_names = [t[0] for t in tables]
 
-        assert 'kb' in table_names
-        assert 'entry' in table_names
-        assert 'entry_fts' in table_names
-        assert 'tag' in table_names
-        assert 'link' in table_names
+        assert "kb" in table_names
+        assert "entry" in table_names
+        assert "entry_fts" in table_names
+        assert "tag" in table_names
+        assert "link" in table_names
 
     def test_register_kb(self, db):
         """Test KB registration."""
@@ -46,67 +44,71 @@ class TestCascadeDB:
 
         stats = db.get_kb_stats("test-kb")
         assert stats is not None
-        assert stats['name'] == "test-kb"
-        assert stats['kb_type'] == "research"
+        assert stats["name"] == "test-kb"
+        assert stats["kb_type"] == "research"
 
     def test_upsert_entry(self, db):
         """Test inserting and updating entries."""
         db.register_kb("test-kb", KBType.EVENTS, "/tmp/test", "")
 
         entry_data = {
-            'id': '2025-01-20--test-event',
-            'kb_name': 'test-kb',
-            'entry_type': 'event',
-            'title': 'Test Event',
-            'body': 'This is a test event body.',
-            'summary': 'Test summary',
-            'date': '2025-01-20',
-            'importance': 8,
-            'tags': ['test', 'example'],
-            'actors': ['Person One', 'Person Two'],
-            'sources': [{'title': 'Source', 'url': 'https://example.com'}],
-            'links': [],
+            "id": "2025-01-20--test-event",
+            "kb_name": "test-kb",
+            "entry_type": "event",
+            "title": "Test Event",
+            "body": "This is a test event body.",
+            "summary": "Test summary",
+            "date": "2025-01-20",
+            "importance": 8,
+            "tags": ["test", "example"],
+            "actors": ["Person One", "Person Two"],
+            "sources": [{"title": "Source", "url": "https://example.com"}],
+            "links": [],
         }
 
         db.upsert_entry(entry_data)
 
         # Retrieve
-        retrieved = db.get_entry('2025-01-20--test-event', 'test-kb')
+        retrieved = db.get_entry("2025-01-20--test-event", "test-kb")
         assert retrieved is not None
-        assert retrieved['title'] == 'Test Event'
-        assert retrieved['importance'] == 8
-        assert len(retrieved['tags']) == 2
-        assert len(retrieved['actors']) == 2
+        assert retrieved["title"] == "Test Event"
+        assert retrieved["importance"] == 8
+        assert len(retrieved["tags"]) == 2
+        assert len(retrieved["actors"]) == 2
 
     def test_search_fts(self, db):
         """Test full-text search."""
         db.register_kb("test-kb", KBType.RESEARCH, "/tmp/test", "")
 
         # Insert entries
-        db.upsert_entry({
-            'id': 'entry-1',
-            'kb_name': 'test-kb',
-            'entry_type': 'actor',
-            'title': 'Stephen Miller',
-            'body': 'Stephen Miller is the architect of immigration policy.',
-            'summary': 'Immigration policy architect',
-            'tags': ['immigration'],
-        })
+        db.upsert_entry(
+            {
+                "id": "entry-1",
+                "kb_name": "test-kb",
+                "entry_type": "actor",
+                "title": "Stephen Miller",
+                "body": "Stephen Miller is the architect of immigration policy.",
+                "summary": "Immigration policy architect",
+                "tags": ["immigration"],
+            }
+        )
 
-        db.upsert_entry({
-            'id': 'entry-2',
-            'kb_name': 'test-kb',
-            'entry_type': 'actor',
-            'title': 'Steve Bannon',
-            'body': 'Steve Bannon was a White House strategist.',
-            'summary': 'White House strategist',
-            'tags': ['strategy'],
-        })
+        db.upsert_entry(
+            {
+                "id": "entry-2",
+                "kb_name": "test-kb",
+                "entry_type": "actor",
+                "title": "Steve Bannon",
+                "body": "Steve Bannon was a White House strategist.",
+                "summary": "White House strategist",
+                "tags": ["strategy"],
+            }
+        )
 
         # Search
         results = db.search("immigration")
         assert len(results) == 1
-        assert results[0]['id'] == 'entry-1'
+        assert results[0]["id"] == "entry-1"
 
         results = db.search("Stephen OR Steve")
         assert len(results) == 2
@@ -115,81 +117,89 @@ class TestCascadeDB:
         """Test tag-based search."""
         db.register_kb("test-kb", KBType.RESEARCH, "/tmp/test", "")
 
-        db.upsert_entry({
-            'id': 'entry-1',
-            'kb_name': 'test-kb',
-            'entry_type': 'actor',
-            'title': 'Entry 1',
-            'body': '',
-            'tags': ['tag-a', 'tag-b'],
-        })
+        db.upsert_entry(
+            {
+                "id": "entry-1",
+                "kb_name": "test-kb",
+                "entry_type": "actor",
+                "title": "Entry 1",
+                "body": "",
+                "tags": ["tag-a", "tag-b"],
+            }
+        )
 
-        db.upsert_entry({
-            'id': 'entry-2',
-            'kb_name': 'test-kb',
-            'entry_type': 'actor',
-            'title': 'Entry 2',
-            'body': '',
-            'tags': ['tag-b', 'tag-c'],
-        })
+        db.upsert_entry(
+            {
+                "id": "entry-2",
+                "kb_name": "test-kb",
+                "entry_type": "actor",
+                "title": "Entry 2",
+                "body": "",
+                "tags": ["tag-b", "tag-c"],
+            }
+        )
 
-        results = db.search_by_tag('tag-b')
+        results = db.search_by_tag("tag-b")
         assert len(results) == 2
 
-        results = db.search_by_tag('tag-a')
+        results = db.search_by_tag("tag-a")
         assert len(results) == 1
 
     def test_links_and_backlinks(self, db):
         """Test link relationships."""
         db.register_kb("test-kb", KBType.RESEARCH, "/tmp/test", "")
 
-        db.upsert_entry({
-            'id': 'source-entry',
-            'kb_name': 'test-kb',
-            'entry_type': 'actor',
-            'title': 'Source Entry',
-            'body': '',
-            'links': [
-                {'target': 'target-entry', 'relation': 'advises', 'note': 'Test link'}
-            ],
-        })
+        db.upsert_entry(
+            {
+                "id": "source-entry",
+                "kb_name": "test-kb",
+                "entry_type": "actor",
+                "title": "Source Entry",
+                "body": "",
+                "links": [{"target": "target-entry", "relation": "advises", "note": "Test link"}],
+            }
+        )
 
-        db.upsert_entry({
-            'id': 'target-entry',
-            'kb_name': 'test-kb',
-            'entry_type': 'actor',
-            'title': 'Target Entry',
-            'body': '',
-        })
+        db.upsert_entry(
+            {
+                "id": "target-entry",
+                "kb_name": "test-kb",
+                "entry_type": "actor",
+                "title": "Target Entry",
+                "body": "",
+            }
+        )
 
         # Get outgoing links
-        outlinks = db.get_outlinks('source-entry', 'test-kb')
+        outlinks = db.get_outlinks("source-entry", "test-kb")
         assert len(outlinks) == 1
-        assert outlinks[0]['relation'] == 'advises'
+        assert outlinks[0]["relation"] == "advises"
 
         # Get backlinks
-        backlinks = db.get_backlinks('target-entry', 'test-kb')
+        backlinks = db.get_backlinks("target-entry", "test-kb")
         assert len(backlinks) == 1
-        assert backlinks[0]['relation'] == 'advised_by'
+        assert backlinks[0]["relation"] == "advised_by"
 
     def test_timeline_query(self, db):
         """Test timeline queries."""
         db.register_kb("timeline", KBType.EVENTS, "/tmp/test", "")
 
-        for i, date in enumerate(['2025-01-10', '2025-01-15', '2025-01-20']):
-            db.upsert_entry({
-                'id': f'{date}--event-{i}',
-                'kb_name': 'timeline',
-                'entry_type': 'event',
-                'title': f'Event {i}',
-                'body': '',
-                'date': date,
-                'importance': 5 + i,
-            })
+        for i, date in enumerate(["2025-01-10", "2025-01-15", "2025-01-20"]):
+            db.upsert_entry(
+                {
+                    "id": f"{date}--event-{i}",
+                    "kb_name": "timeline",
+                    "entry_type": "event",
+                    "title": f"Event {i}",
+                    "body": "",
+                    "date": date,
+                    "importance": 5 + i,
+                }
+            )
 
-        results = db.get_timeline(date_from='2025-01-12', date_to='2025-01-18')
+        results = db.get_timeline(date_from="2025-01-12", date_to="2025-01-18")
         assert len(results) == 1
-        assert results[0]['date'] == '2025-01-15'
+        assert results[0]["date"] == "2025-01-15"
 
         results = db.get_timeline(min_importance=6)
         assert len(results) == 2
@@ -207,7 +217,7 @@ class TestKBRepository:
                 name="test-events",
                 path=kb_path,
                 kb_type=KBType.EVENTS,
-                description="Test events KB"
+                description="Test events KB",
             )
             yield KBRepository(config)
 
@@ -220,17 +230,14 @@ class TestKBRepository:
                 name="test-research",
                 path=kb_path,
                 kb_type=KBType.RESEARCH,
-                description="Test research KB"
+                description="Test research KB",
             )
             yield KBRepository(config)
 
     def test_save_and_load_event(self, events_kb):
         """Test saving and loading an event."""
         event = EventEntry.create(
-            date="2025-01-20",
-            title="Test Event",
-            body="This is a test event.",
-            importance=8
+            date="2025-01-20", title="Test Event", body="This is a test event.", importance=8
         )
 
         path = events_kb.save(event)
@@ -243,11 +250,7 @@ class TestKBRepository:
 
     def test_save_and_load_research(self, research_kb):
         """Test saving and loading a research entry."""
-        entry = ResearchEntry.create_actor(
-            name="John Smith",
-            role="test role",
-            importance=6
-        )
+        entry = ResearchEntry.create_actor(name="John Smith", role="test role", importance=6)
         entry.body = "Biography of John Smith."
 
         path = research_kb.save(entry)
@@ -262,11 +265,7 @@ class TestKBRepository:
         """Test listing all entries."""
         # Create some entries
         for i in range(3):
-            event = EventEntry.create(
-                date=f"2025-01-{10+i:02d}",
-                title=f"Event {i}",
-                body=""
-            )
+            event = EventEntry.create(date=f"2025-01-{10+i:02d}", title=f"Event {i}", body="")
             events_kb.save(event)
 
         entries = list(events_kb.list_entries())
@@ -274,11 +273,7 @@ class TestKBRepository:
 
     def test_delete_entry(self, events_kb):
         """Test deleting an entry."""
-        event = EventEntry.create(
-            date="2025-01-20",
-            title="To Delete",
-            body=""
-        )
+        event = EventEntry.create(date="2025-01-20", title="To Delete", body="")
         events_kb.save(event)
 
         assert events_kb.exists(event.id)
@@ -304,10 +299,7 @@ class TestIndexManager:
             kb_path.mkdir()
 
             kb_config = KBConfig(
-                name="test-kb",
-                path=kb_path,
-                kb_type=KBType.EVENTS,
-                description="Test KB"
+                name="test-kb", path=kb_path, kb_type=KBType.EVENTS, description="Test KB"
             )
 
             # Create some entries
@@ -317,74 +309,64 @@ class TestIndexManager:
                     date=f"2025-01-{10+i:02d}",
                     title=f"Event {i}",
                     body=f"Body content for event {i}.",
-                    importance=5+i
+                    importance=5 + i,
                 )
-                event.tags = ['test', f'tag-{i}']
+                event.tags = ["test", f"tag-{i}"]
                 repo.save(event)
 
             # Create config
             config = CascadeConfig(
-                knowledge_bases=[kb_config],
-                settings=Settings(index_path=db_path)
+                knowledge_bases=[kb_config], settings=Settings(index_path=db_path)
             )
 
             index_mgr = IndexManager(db, config)
 
-            yield {
-                'db': db,
-                'config': config,
-                'index_mgr': index_mgr,
-                'kb_path': kb_path
-            }
+            yield {"db": db, "config": config, "index_mgr": index_mgr, "kb_path": kb_path}
 
             db.close()
 
     def test_index_kb(self, setup):
         """Test indexing a KB."""
-        count = setup['index_mgr'].index_kb("test-kb")
+        count = setup["index_mgr"].index_kb("test-kb")
         assert count == 5
 
         # Verify in database
-        stats = setup['db'].get_kb_stats("test-kb")
-        assert stats['entry_count'] == 5
+        stats = setup["db"].get_kb_stats("test-kb")
+        assert stats["entry_count"] == 5
 
     def test_search_after_index(self, setup):
         """Test searching after indexing."""
-        setup['index_mgr'].index_kb("test-kb")
+        setup["index_mgr"].index_kb("test-kb")
 
-        results = setup['db'].search("Event")
+        results = setup["db"].search("Event")
         assert len(results) == 5
 
-        results = setup['db'].search("event 2")
+        results = setup["db"].search("event 2")
         assert len(results) >= 1
 
     def test_index_stats(self, setup):
         """Test getting index statistics."""
-        setup['index_mgr'].index_kb("test-kb")
+        setup["index_mgr"].index_kb("test-kb")
 
-        stats = setup['index_mgr'].get_index_stats()
-        assert stats['total_entries'] == 5
-        assert 'test-kb' in stats['kbs']
+        stats = setup["index_mgr"].get_index_stats()
+        assert stats["total_entries"] == 5
+        assert "test-kb" in stats["kbs"]
 
     def test_incremental_sync(self, setup):
         """Test incremental sync."""
         # Initial index
-        setup['index_mgr'].index_kb("test-kb")
+        setup["index_mgr"].index_kb("test-kb")
 
         # Add a new entry
-        repo = KBRepository(setup['config'].get_kb("test-kb"))
-        new_event = EventEntry.create(
-            date="2025-01-25",
-            title="New Event",
-            body="New event body."
-        )
+        repo = KBRepository(setup["config"].get_kb("test-kb"))
+        new_event = EventEntry.create(date="2025-01-25", title="New Event", body="New event body.")
         repo.save(new_event)
 
         # Sync
-        results = setup['index_mgr'].sync_incremental("test-kb")
-        assert results['added'] == 1
-        assert results['updated'] == 0
-        assert results['removed'] == 0
+        results = setup["index_mgr"].sync_incremental("test-kb")
+        assert results["added"] == 1
+        assert results["updated"] == 0
+        assert results["removed"] == 0
 
 
 class TestIntegrationWithExistingKBs:
@@ -408,15 +390,10 @@ class TestIntegrationWithExistingKBs:
             if not timeline_path.exists():
                 pytest.skip("Timeline KB not found")
 
-            kb_config = KBConfig(
-                name="timeline",
-                path=timeline_path,
-                kb_type=KBType.EVENTS
-            )
+            kb_config = KBConfig(name="timeline", path=timeline_path, kb_type=KBType.EVENTS)
 
             config = CascadeConfig(
-                knowledge_bases=[kb_config],
-                settings=Settings(index_path=db_path)
+                knowledge_bases=[kb_config], settings=Settings(index_path=db_path)
             )
 
             index_mgr = IndexManager(db, config)

@@ -24,7 +24,7 @@ from .models import EventEntry, ResearchEntry
 app = typer.Typer(
     name="cascade-research",
     help="Multi-KB research infrastructure for citizen journalists and AI agents",
-    no_args_is_help=True
+    no_args_is_help=True,
 )
 console = Console()
 
@@ -47,7 +47,9 @@ app.add_typer(index_app, name="index")
 
 @kb_app.command("list")
 def kb_list(
-    kb_type: str | None = typer.Option(None, "--type", "-t", help="Filter by type (events/research)")
+    kb_type: str | None = typer.Option(
+        None, "--type", "-t", help="Filter by type (events/research)"
+    ),
 ):
     """List all configured knowledge bases."""
     config = load_config()
@@ -101,12 +103,7 @@ def kb_add(
         console.print(f"[red]Error:[/red] Invalid KB type: {kb_type}. Use 'events' or 'research'")
         raise typer.Exit(1)
 
-    kb = KBConfig(
-        name=kb_name,
-        path=path,
-        kb_type=kb_type_enum,
-        description=description
-    )
+    kb = KBConfig(name=kb_name, path=path, kb_type=kb_type_enum, description=description)
     kb.load_kb_yaml()
 
     config.add_kb(kb)
@@ -118,7 +115,7 @@ def kb_add(
 @kb_app.command("remove")
 def kb_remove(
     name: str = typer.Argument(..., help="Name of the KB to remove"),
-    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation")
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ):
     """Remove a knowledge base from the registry."""
     config = load_config()
@@ -143,7 +140,7 @@ def kb_remove(
 @kb_app.command("discover")
 def kb_discover(
     search_path: Path | None = typer.Argument(None, help="Path to search for KBs"),
-    add: bool = typer.Option(False, "--add", "-a", help="Add discovered KBs to registry")
+    add: bool = typer.Option(False, "--add", "-a", help="Add discovered KBs to registry"),
 ):
     """Auto-discover knowledge bases by finding kb.yaml files."""
     config = load_config()
@@ -184,7 +181,7 @@ def kb_discover(
 
 @kb_app.command("validate")
 def kb_validate(
-    name: str | None = typer.Argument(None, help="Name of KB to validate (all if omitted)")
+    name: str | None = typer.Argument(None, help="Name of KB to validate (all if omitted)"),
 ):
     """Validate knowledge base configuration and contents."""
     config = load_config()
@@ -256,7 +253,9 @@ def get_entry(
                 if entry.id == entry_id:
                     # Display entry
                     console.print(f"\n[bold cyan]{entry.title}[/bold cyan]")
-                    console.print(f"[dim]KB: {kb.name} | Type: {entry.entry_type} | ID: {entry.id}[/dim]")
+                    console.print(
+                        f"[dim]KB: {kb.name} | Type: {entry.entry_type} | ID: {entry.id}[/dim]"
+                    )
                     console.print(f"[dim]File: {md_file}[/dim]\n")
 
                     if entry.summary:
@@ -308,6 +307,7 @@ def serve(
 # Repository Commands
 # =============================================================================
 
+
 @repo_app.command("list")
 def repo_list():
     """List all configured repositories."""
@@ -328,7 +328,11 @@ def repo_list():
     for repo in config.repositories:
         kbs = config.get_kbs_in_repo(repo.name)
         kb_count = str(len(kbs)) if kbs else "0"
-        remote = repo.remote[:40] + "..." if repo.remote and len(repo.remote) > 40 else (repo.remote or "-")
+        remote = (
+            repo.remote[:40] + "..."
+            if repo.remote and len(repo.remote) > 40
+            else (repo.remote or "-")
+        )
         table.add_row(repo.name, str(repo.path), remote, repo.auth_method, kb_count)
 
     console.print(table)
@@ -339,8 +343,12 @@ def repo_add(
     path: Path = typer.Argument(..., help="Path to the repository"),
     name: str | None = typer.Option(None, "--name", "-n", help="Name for the repo"),
     remote: str | None = typer.Option(None, "--remote", "-r", help="Git remote URL"),
-    auth_method: str = typer.Option("none", "--auth", "-a", help="Auth method (none/ssh/github_oauth/token)"),
-    discover: bool = typer.Option(True, "--discover/--no-discover", help="Auto-discover KBs in repo"),
+    auth_method: str = typer.Option(
+        "none", "--auth", "-a", help="Auth method (none/ssh/github_oauth/token)"
+    ),
+    discover: bool = typer.Option(
+        True, "--discover/--no-discover", help="Auto-discover KBs in repo"
+    ),
 ):
     """Add a repository to the registry."""
     config = load_config()
@@ -448,6 +456,7 @@ def repo_sync(
 # Authentication Commands
 # =============================================================================
 
+
 @auth_app.command("status")
 def auth_status():
     """Check GitHub authentication status."""
@@ -463,7 +472,9 @@ def auth_status():
 @auth_app.command("github-login")
 def auth_github_login(
     client_id: str | None = typer.Option(None, "--client-id", help="OAuth App client ID"),
-    client_secret: str | None = typer.Option(None, "--client-secret", help="OAuth App client secret"),
+    client_secret: str | None = typer.Option(
+        None, "--client-secret", help="OAuth App client secret"
+    ),
 ):
     """Authenticate with GitHub using OAuth."""
     from .github_auth import start_oauth_flow
@@ -515,6 +526,7 @@ def auth_github_setup():
 # Index Commands
 # =============================================================================
 
+
 @index_app.command("build")
 def index_build(
     kb_name: str | None = typer.Argument(None, help="KB to index (all if omitted)"),
@@ -556,10 +568,13 @@ def index_build(
 
             task = progress.add_task(f"Indexing {kb.name}...", total=None)
 
-            def update_progress(current: int, total: int):
-                progress.update(task, completed=current, total=total)
+            def make_progress_callback(task_id):
+                def update_progress(current: int, total: int):
+                    progress.update(task_id, completed=current, total=total)
 
-            count = index_mgr.index_kb(kb.name, update_progress)
+                return update_progress
+
+            count = index_mgr.index_kb(kb.name, make_progress_callback(task))
             progress.update(task, description=f"[green]✓[/green] {kb.name}: {count} entries")
 
     console.print("\n[green]Index build complete.[/green]")
@@ -600,7 +615,7 @@ def index_stats():
     console.print(f"Total tags: {stats['total_tags']}")
     console.print(f"Total links: {stats['total_links']}")
 
-    if stats['kbs']:
+    if stats["kbs"]:
         console.print("\n[bold]Knowledge Bases:[/bold]")
         table = Table()
         table.add_column("Name", style="cyan")
@@ -608,12 +623,12 @@ def index_stats():
         table.add_column("Entries", justify="right")
         table.add_column("Last Indexed")
 
-        for name, kb_stats in stats['kbs'].items():
+        for name, kb_stats in stats["kbs"].items():
             table.add_row(
                 name,
-                kb_stats.get('kb_type', '-'),
-                str(kb_stats.get('actual_count', 0)),
-                kb_stats.get('last_indexed', '-')[:19] if kb_stats.get('last_indexed') else '-'
+                kb_stats.get("kb_type", "-"),
+                str(kb_stats.get("actual_count", 0)),
+                kb_stats.get("last_indexed", "-")[:19] if kb_stats.get("last_indexed") else "-",
             )
         console.print(table)
 
@@ -631,29 +646,33 @@ def index_health():
 
     console.print("\n[bold]Index Health Check[/bold]\n")
 
-    if not health['missing_files'] and not health['unindexed_files'] and not health['stale_entries']:
+    if (
+        not health["missing_files"]
+        and not health["unindexed_files"]
+        and not health["stale_entries"]
+    ):
         console.print("[green]✓ Index is healthy[/green]")
         return
 
-    if health['missing_files']:
+    if health["missing_files"]:
         console.print(f"[red]Missing files ({len(health['missing_files'])}):[/red]")
-        for item in health['missing_files'][:10]:
+        for item in health["missing_files"][:10]:
             console.print(f"  • {item['kb']}/{item['id']}")
-        if len(health['missing_files']) > 10:
+        if len(health["missing_files"]) > 10:
             console.print(f"  ... and {len(health['missing_files']) - 10} more")
 
-    if health['unindexed_files']:
+    if health["unindexed_files"]:
         console.print(f"[yellow]Unindexed files ({len(health['unindexed_files'])}):[/yellow]")
-        for item in health['unindexed_files'][:10]:
+        for item in health["unindexed_files"][:10]:
             console.print(f"  • {item['kb']}/{item['id']}")
-        if len(health['unindexed_files']) > 10:
+        if len(health["unindexed_files"]) > 10:
             console.print(f"  ... and {len(health['unindexed_files']) - 10} more")
 
-    if health['stale_entries']:
+    if health["stale_entries"]:
         console.print(f"[yellow]Stale entries ({len(health['stale_entries'])}):[/yellow]")
-        for item in health['stale_entries'][:10]:
+        for item in health["stale_entries"][:10]:
             console.print(f"  • {item['kb']}/{item['id']}")
-        if len(health['stale_entries']) > 10:
+        if len(health["stale_entries"]) > 10:
             console.print(f"  ... and {len(health['stale_entries']) - 10} more")
 
     console.print("\nRun 'cascade-research index sync' to fix issues.")
@@ -662,6 +681,7 @@ def index_health():
 # =============================================================================
 # Updated Search Command (using index)
 # =============================================================================
+
 
 @app.command("search")
 def search(
@@ -702,6 +722,7 @@ def search(
         if row[0] == 0:
             console.print("[yellow]Index is empty. Building index...[/yellow]")
             from .storage import IndexManager
+
             index_mgr = IndexManager(db, config)
             index_mgr.index_all()
 
@@ -713,7 +734,7 @@ def search(
             tags=tags_list,
             date_from=date_from,
             date_to=date_to,
-            limit=limit
+            limit=limit,
         )
 
         if not results:
@@ -728,14 +749,14 @@ def search(
         table.add_column("Snippet", width=50)
 
         for r in results:
-            date = r.get('date', '')[:10] if r.get('date') else ''
-            snippet = r.get('snippet', '')[:100] if r.get('snippet') else ''
+            date = r.get("date", "")[:10] if r.get("date") else ""
+            snippet = r.get("snippet", "")[:100] if r.get("snippet") else ""
             table.add_row(
-                r.get('kb_name', ''),
-                r.get('entry_type', ''),
-                r.get('title', '')[:40],
+                r.get("kb_name", ""),
+                r.get("entry_type", ""),
+                r.get("title", "")[:40],
                 date,
-                snippet
+                snippet,
             )
 
         console.print(table)
@@ -770,7 +791,7 @@ def _search_files(config, query, kb_name, entry_type, limit):
 
         for md_file in kb.path.rglob("*.md"):
             try:
-                content = md_file.read_text(encoding='utf-8')
+                content = md_file.read_text(encoding="utf-8")
                 if query.lower() in content.lower():
                     if kb.kb_type == KBType.EVENTS:
                         entry = EventEntry.load(md_file)
@@ -800,7 +821,7 @@ def _search_files(config, query, kb_name, entry_type, limit):
     table.add_column("Title")
     table.add_column("ID", style="dim")
 
-    for kb_name, entry, path in results:
+    for kb_name, entry, _path in results:
         table.add_row(kb_name, entry.entry_type, entry.title, entry.id)
 
     console.print(table)
@@ -809,6 +830,7 @@ def _search_files(config, query, kb_name, entry_type, limit):
 # =============================================================================
 # MCP Server Command
 # =============================================================================
+
 
 @app.command("mcp")
 def mcp_server():
@@ -843,9 +865,11 @@ def mcp_server():
 @app.command("mcp-setup")
 def mcp_setup(
     config_path: Path | None = typer.Option(
-        None, "--config", "-c",
-        help="Path to Claude Code config (default: ~/.claude/claude_desktop_config.json)"
-    )
+        None,
+        "--config",
+        "-c",
+        help="Path to Claude Code config (default: ~/.claude/claude_desktop_config.json)",
+    ),
 ):
     """
     Set up MCP server integration with Claude Code.
@@ -883,11 +907,11 @@ def mcp_setup(
     claude_config["mcpServers"]["cascade-research"] = {
         "command": cascade_exe if "python" not in cascade_exe else "python",
         "args": ["-m", "cascade_research.cli", "mcp"] if "python" in cascade_exe else ["mcp"],
-        "env": {}
+        "env": {},
     }
 
     # Write config
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         json.dump(claude_config, f, indent=2)
 
     console.print(f"[green]✓ MCP server configured in {config_path}[/green]")

@@ -8,6 +8,7 @@ Configuration is loaded from:
 3. Individual kb.yaml files in each KB root
 """
 
+import logging
 import os
 from dataclasses import dataclass, field
 from enum import Enum
@@ -17,11 +18,14 @@ from typing import Any, Literal
 import yaml
 from dotenv import load_dotenv
 
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 
 class KBType(str, Enum):
     """Knowledge Base type."""
+
     EVENTS = "events"
     RESEARCH = "research"
 
@@ -29,6 +33,7 @@ class KBType(str, Enum):
 @dataclass
 class KBConfig:
     """Configuration for a single knowledge base."""
+
     name: str
     path: Path
     kb_type: KBType
@@ -68,10 +73,10 @@ class KBConfig:
         if self.kb_yaml_path.exists():
             with open(self.kb_yaml_path) as f:
                 data = yaml.safe_load(f) or {}
-            self.schema = data.get('schema')
-            self.types = data.get('types')
-            self.policies = data.get('policies')
-            self.ftm = data.get('ftm')
+            self.schema = data.get("schema")
+            self.types = data.get("types")
+            self.policies = data.get("policies")
+            self.ftm = data.get("ftm")
             return True
         return False
 
@@ -92,6 +97,7 @@ class Repository:
 
     Supports both local and remote repos, with optional GitHub OAuth for private repos.
     """
+
     name: str  # Unique identifier for this repo
     path: Path  # Local path where repo is/will be cloned
     remote: str | None = None  # Git remote URL (https or ssh)
@@ -138,6 +144,7 @@ class GitHubAuth:
 
     Supports both OAuth App flow and GitHub App installation tokens.
     """
+
     # OAuth App credentials (for user authentication)
     client_id: str | None = None
     client_secret: str | None = None
@@ -169,8 +176,9 @@ class GitHubAuth:
             return False
         if self.token_expiry:
             from datetime import datetime
+
             try:
-                expiry = datetime.fromisoformat(self.token_expiry.replace('Z', '+00:00'))
+                expiry = datetime.fromisoformat(self.token_expiry.replace("Z", "+00:00"))
                 if datetime.now(expiry.tzinfo) >= expiry:
                     return False
             except Exception:
@@ -185,34 +193,37 @@ class GitHubAuth:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary (excluding secrets for display)."""
         return {
-            'client_id': self.client_id,
-            'has_access_token': bool(self.access_token),
-            'token_expiry': self.token_expiry,
-            'app_id': self.app_id,
-            'has_private_key': bool(self.private_key_path and self.private_key_path.exists()),
-            'installation_id': self.installation_id,
-            'scopes': self.scopes,
+            "client_id": self.client_id,
+            "has_access_token": bool(self.access_token),
+            "token_expiry": self.token_expiry,
+            "app_id": self.app_id,
+            "has_private_key": bool(self.private_key_path and self.private_key_path.exists()),
+            "installation_id": self.installation_id,
+            "scopes": self.scopes,
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'GitHubAuth':
+    def from_dict(cls, data: dict[str, Any]) -> "GitHubAuth":
         """Create from dictionary."""
         return cls(
-            client_id=data.get('client_id'),
-            client_secret=data.get('client_secret'),
-            access_token=data.get('access_token'),
-            refresh_token=data.get('refresh_token'),
-            token_expiry=data.get('token_expiry'),
-            app_id=data.get('app_id'),
-            private_key_path=Path(data['private_key_path']) if data.get('private_key_path') else None,
-            installation_id=data.get('installation_id'),
-            scopes=data.get('scopes', ["repo", "read:user"]),
+            client_id=data.get("client_id"),
+            client_secret=data.get("client_secret"),
+            access_token=data.get("access_token"),
+            refresh_token=data.get("refresh_token"),
+            token_expiry=data.get("token_expiry"),
+            app_id=data.get("app_id"),
+            private_key_path=Path(data["private_key_path"])
+            if data.get("private_key_path")
+            else None,
+            installation_id=data.get("installation_id"),
+            scopes=data.get("scopes", ["repo", "read:user"]),
         )
 
 
 @dataclass
 class Subscription:
     """Configuration for a subscribed remote KB."""
+
     url: str
     local_path: Path
     auto_sync: bool = True
@@ -226,7 +237,8 @@ class Subscription:
 @dataclass
 class Settings:
     """Global application settings."""
-    default_editor: str = field(default_factory=lambda: os.environ.get('EDITOR', 'vim'))
+
+    default_editor: str = field(default_factory=lambda: os.environ.get("EDITOR", "vim"))
     ai_provider: Literal["anthropic", "openai", "local", "stub", "none"] = "stub"
     ai_model: str = "claude-sonnet-4-20250514"
     ai_api_key: str = ""
@@ -241,9 +253,11 @@ class Settings:
         self.index_path = Path(self.index_path).expanduser().resolve()
         # Load from environment if not set
         if not self.ai_api_key:
-            self.ai_api_key = os.environ.get('OPENAI_API_KEY', '') or os.environ.get('ANTHROPIC_API_KEY', '')
+            self.ai_api_key = os.environ.get("OPENAI_API_KEY", "") or os.environ.get(
+                "ANTHROPIC_API_KEY", ""
+            )
         if not self.ai_api_base:
-            self.ai_api_base = os.environ.get('OPENAI_API_BASE', '')
+            self.ai_api_base = os.environ.get("OPENAI_API_BASE", "")
 
 
 @dataclass
@@ -259,6 +273,7 @@ class CascadeConfig:
     - GitHub OAuth for private repository access
     - Subscriptions to remote KBs
     """
+
     version: str = "1.0"
     knowledge_bases: list[KBConfig] = field(default_factory=list)
     repositories: list[Repository] = field(default_factory=list)
@@ -342,108 +357,114 @@ class CascadeConfig:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for YAML serialization."""
         result: dict[str, Any] = {
-            'version': self.version,
-            'knowledge_bases': [
+            "version": self.version,
+            "knowledge_bases": [
                 {
-                    'name': kb.name,
-                    'path': str(kb.path),
-                    'kb_type': kb.kb_type.value,
-                    'description': kb.description,
-                    'read_only': kb.read_only,
-                    **({'remote': kb.remote} if kb.remote else {}),
-                    **({'repo': kb.repo} if kb.repo else {}),
-                    **({'repo_subpath': kb.repo_subpath} if kb.repo_subpath else {}),
+                    "name": kb.name,
+                    "path": str(kb.path),
+                    "kb_type": kb.kb_type.value,
+                    "description": kb.description,
+                    "read_only": kb.read_only,
+                    **({"remote": kb.remote} if kb.remote else {}),
+                    **({"repo": kb.repo} if kb.repo else {}),
+                    **({"repo_subpath": kb.repo_subpath} if kb.repo_subpath else {}),
                 }
                 for kb in self.knowledge_bases
             ],
         }
 
         if self.repositories:
-            result['repositories'] = [
+            result["repositories"] = [
                 {
-                    'name': repo.name,
-                    'path': str(repo.path),
-                    'remote': repo.remote,
-                    'branch': repo.branch,
-                    'auto_sync': repo.auto_sync,
-                    'sync_interval': repo.sync_interval,
-                    'auth_method': repo.auth_method,
-                    **({'github_app_id': repo.github_app_id} if repo.github_app_id else {}),
-                    **({'kb_paths': repo.kb_paths} if repo.kb_paths else {}),
+                    "name": repo.name,
+                    "path": str(repo.path),
+                    "remote": repo.remote,
+                    "branch": repo.branch,
+                    "auto_sync": repo.auto_sync,
+                    "sync_interval": repo.sync_interval,
+                    "auth_method": repo.auth_method,
+                    **({"github_app_id": repo.github_app_id} if repo.github_app_id else {}),
+                    **({"kb_paths": repo.kb_paths} if repo.kb_paths else {}),
                 }
                 for repo in self.repositories
             ]
 
-        result['subscriptions'] = [
+        result["subscriptions"] = [
             {
-                'url': sub.url,
-                'local_path': str(sub.local_path),
-                'auto_sync': sub.auto_sync,
-                'sync_interval': sub.sync_interval,
-                **({'repo': sub.repo} if sub.repo else {}),
+                "url": sub.url,
+                "local_path": str(sub.local_path),
+                "auto_sync": sub.auto_sync,
+                "sync_interval": sub.sync_interval,
+                **({"repo": sub.repo} if sub.repo else {}),
             }
             for sub in self.subscriptions
         ]
 
         # GitHub auth - store in separate secure file, just reference here
         if self.github_auth and self.github_auth.has_oauth_credentials:
-            result['github_auth'] = {
-                'configured': True,
-                'has_valid_token': self.github_auth.has_valid_token,
+            result["github_auth"] = {
+                "configured": True,
+                "has_valid_token": self.github_auth.has_valid_token,
             }
 
-        result['settings'] = {
-            'default_editor': self.settings.default_editor,
-            'ai_provider': self.settings.ai_provider,
-            'ai_model': self.settings.ai_model,
-            'summary_length': self.settings.summary_length,
-            'enable_mcp': self.settings.enable_mcp,
-            'index_path': str(self.settings.index_path),
-            'host': self.settings.host,
-            'port': self.settings.port,
+        result["settings"] = {
+            "default_editor": self.settings.default_editor,
+            "ai_provider": self.settings.ai_provider,
+            "ai_model": self.settings.ai_model,
+            "summary_length": self.settings.summary_length,
+            "enable_mcp": self.settings.enable_mcp,
+            "index_path": str(self.settings.index_path),
+            "host": self.settings.host,
+            "port": self.settings.port,
         }
 
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'CascadeConfig':
+    def from_dict(cls, data: dict[str, Any]) -> "CascadeConfig":
         """Create from dictionary (YAML loaded)."""
         knowledge_bases = []
-        for kb_data in data.get('knowledge_bases', []):
-            knowledge_bases.append(KBConfig(
-                name=kb_data['name'],
-                path=Path(kb_data['path']),
-                kb_type=KBType(kb_data['kb_type']),
-                description=kb_data.get('description', ''),
-                read_only=kb_data.get('read_only', False),
-                remote=kb_data.get('remote'),
-                repo=kb_data.get('repo'),
-                repo_subpath=kb_data.get('repo_subpath', ''),
-            ))
+        for kb_data in data.get("knowledge_bases", []):
+            knowledge_bases.append(
+                KBConfig(
+                    name=kb_data["name"],
+                    path=Path(kb_data["path"]),
+                    kb_type=KBType(kb_data["kb_type"]),
+                    description=kb_data.get("description", ""),
+                    read_only=kb_data.get("read_only", False),
+                    remote=kb_data.get("remote"),
+                    repo=kb_data.get("repo"),
+                    repo_subpath=kb_data.get("repo_subpath", ""),
+                )
+            )
 
         repositories = []
-        for repo_data in data.get('repositories', []):
-            repositories.append(Repository(
-                name=repo_data['name'],
-                path=Path(repo_data['path']),
-                remote=repo_data.get('remote'),
-                branch=repo_data.get('branch', 'main'),
-                auto_sync=repo_data.get('auto_sync', True),
-                sync_interval=repo_data.get('sync_interval', 3600),
-                auth_method=repo_data.get('auth_method', 'none'),
-                github_app_id=repo_data.get('github_app_id'),
-                kb_paths=repo_data.get('kb_paths', []),
-            ))
+        for repo_data in data.get("repositories", []):
+            repositories.append(
+                Repository(
+                    name=repo_data["name"],
+                    path=Path(repo_data["path"]),
+                    remote=repo_data.get("remote"),
+                    branch=repo_data.get("branch", "main"),
+                    auto_sync=repo_data.get("auto_sync", True),
+                    sync_interval=repo_data.get("sync_interval", 3600),
+                    auth_method=repo_data.get("auth_method", "none"),
+                    github_app_id=repo_data.get("github_app_id"),
+                    kb_paths=repo_data.get("kb_paths", []),
+                )
+            )
 
         subscriptions = []
-        for sub_data in data.get('subscriptions', []):
-            subscriptions.append(Subscription(
-                url=sub_data['url'],
-                local_path=Path(sub_data['local_path']),
-                auto_sync=sub_data.get('auto_sync', True),
-                sync_interval=sub_data.get('sync_interval', 3600),
-                repo=sub_data.get('repo'),
-            ))
+        for sub_data in data.get("subscriptions", []):
+            subscriptions.append(
+                Subscription(
+                    url=sub_data["url"],
+                    local_path=Path(sub_data["local_path"]),
+                    auto_sync=sub_data.get("auto_sync", True),
+                    sync_interval=sub_data.get("sync_interval", 3600),
+                    repo=sub_data.get("repo"),
+                )
+            )
 
         # Load GitHub auth from secure file if referenced
         github_auth = None
@@ -456,20 +477,20 @@ class CascadeConfig:
             except Exception:
                 pass
 
-        settings_data = data.get('settings', {})
+        settings_data = data.get("settings", {})
         settings = Settings(
-            default_editor=settings_data.get('default_editor', os.environ.get('EDITOR', 'vim')),
-            ai_provider=settings_data.get('ai_provider', 'stub'),
-            ai_model=settings_data.get('ai_model', 'claude-sonnet-4-20250514'),
-            summary_length=settings_data.get('summary_length', 280),
-            enable_mcp=settings_data.get('enable_mcp', True),
-            index_path=Path(settings_data.get('index_path', '~/.cascade-research/index.db')),
-            host=settings_data.get('host', '127.0.0.1'),
-            port=settings_data.get('port', 8088),
+            default_editor=settings_data.get("default_editor", os.environ.get("EDITOR", "vim")),
+            ai_provider=settings_data.get("ai_provider", "stub"),
+            ai_model=settings_data.get("ai_model", "claude-sonnet-4-20250514"),
+            summary_length=settings_data.get("summary_length", 280),
+            enable_mcp=settings_data.get("enable_mcp", True),
+            index_path=Path(settings_data.get("index_path", "~/.cascade-research/index.db")),
+            host=settings_data.get("host", "127.0.0.1"),
+            port=settings_data.get("port", 8088),
         )
 
         return cls(
-            version=data.get('version', '1.0'),
+            version=data.get("version", "1.0"),
             knowledge_bases=knowledge_bases,
             repositories=repositories,
             subscriptions=subscriptions,
@@ -479,7 +500,9 @@ class CascadeConfig:
 
 
 # Global configuration paths
-CONFIG_DIR = Path(os.environ.get('CASCADE_CONFIG_DIR', '~/.cascade-research')).expanduser().resolve()
+CONFIG_DIR = (
+    Path(os.environ.get("CASCADE_CONFIG_DIR", "~/.cascade-research")).expanduser().resolve()
+)
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 
 
@@ -516,7 +539,7 @@ def save_config(config: CascadeConfig) -> None:
     """Save configuration to config.yaml."""
     ensure_config_dir()
 
-    with open(CONFIG_FILE, 'w') as f:
+    with open(CONFIG_FILE, "w") as f:
         yaml.safe_dump(config.to_dict(), f, sort_keys=False, default_flow_style=False)
 
 
@@ -539,28 +562,28 @@ def auto_discover_kbs(search_paths: list[Path] | None = None) -> list[KBConfig]:
             continue
 
         # Look for kb.yaml files
-        for kb_yaml in search_path.rglob('kb.yaml'):
+        for kb_yaml in search_path.rglob("kb.yaml"):
             try:
                 with open(kb_yaml) as f:
                     data = yaml.safe_load(f) or {}
 
-                name = data.get('name', kb_yaml.parent.name)
-                kb_type_str = data.get('kb_type', 'research')
+                name = data.get("name", kb_yaml.parent.name)
+                kb_type_str = data.get("kb_type", "research")
 
                 kb = KBConfig(
                     name=name,
                     path=kb_yaml.parent,
                     kb_type=KBType(kb_type_str),
-                    description=data.get('description', ''),
+                    description=data.get("description", ""),
                 )
-                kb.schema = data.get('schema')
-                kb.types = data.get('types')
-                kb.policies = data.get('policies')
-                kb.ftm = data.get('ftm')
+                kb.schema = data.get("schema")
+                kb.types = data.get("types")
+                kb.policies = data.get("policies")
+                kb.ftm = data.get("ftm")
 
                 discovered.append(kb)
             except Exception as e:
-                print(f"[WARN] Could not parse {kb_yaml}: {e}")
+                logger.warning("Could not parse %s: %s", kb_yaml, e)
 
     return discovered
 
@@ -576,7 +599,7 @@ def get_notes_dir(kb_name: str | None = None) -> Path:
     # Return first KB or default
     if config.knowledge_bases:
         return config.knowledge_bases[0].path
-    return Path('./data/notes').resolve()
+    return Path("./data/notes").resolve()
 
 
 def get_db_path(kb_name: str | None = None) -> Path:

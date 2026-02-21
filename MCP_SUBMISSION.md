@@ -15,7 +15,7 @@ This do## Repository Information
 
 ### Key Features
 - **Atomic Note Management**: Create, search, and organize atomic notes with unique IDs
-- **AI-Powered Summarization**: Auto-generate concise summaries with configurable length limits  
+- **AI-Powered Summarization**: Auto-generate concise summaries with configurable length limits
 - **Full-Text Search**: SQLite FTS5 search across titles, bodies, and summaries
 - **CEQRC Workflow**: AI-guided Capture→Explain→Question→Refine→Connect process
 - **Link Discovery**: Intelligent suggestion and creation of typed relationships between notes

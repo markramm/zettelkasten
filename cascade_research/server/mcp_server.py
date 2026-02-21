@@ -44,12 +44,8 @@ class CascadeMCPServer:
         self.tools = {
             "kb_list": {
                 "description": "List all mounted knowledge bases with their types and entry counts",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                },
-                "handler": self._kb_list
+                "inputSchema": {"type": "object", "properties": {}, "required": []},
+                "handler": self._kb_list,
             },
             "kb_search": {
                 "description": "Full-text search across knowledge bases. Supports FTS5 query syntax (AND, OR, NOT, phrases in quotes). Returns entries with snippets ranked by relevance.",
@@ -58,37 +54,37 @@ class CascadeMCPServer:
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Search query (FTS5 syntax supported)"
+                            "description": "Search query (FTS5 syntax supported)",
                         },
                         "kb_name": {
                             "type": "string",
-                            "description": "Limit search to specific KB (optional)"
+                            "description": "Limit search to specific KB (optional)",
                         },
                         "entry_type": {
                             "type": "string",
-                            "description": "Filter by entry type: event, actor, organization, theme, etc."
+                            "description": "Filter by entry type: event, actor, organization, theme, etc.",
                         },
                         "tags": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Filter by tags (entries must have ALL specified tags)"
+                            "description": "Filter by tags (entries must have ALL specified tags)",
                         },
                         "date_from": {
                             "type": "string",
-                            "description": "Start date for events (YYYY-MM-DD)"
+                            "description": "Start date for events (YYYY-MM-DD)",
                         },
                         "date_to": {
                             "type": "string",
-                            "description": "End date for events (YYYY-MM-DD)"
+                            "description": "End date for events (YYYY-MM-DD)",
                         },
                         "limit": {
                             "type": "integer",
-                            "description": "Maximum results to return (default 20)"
-                        }
+                            "description": "Maximum results to return (default 20)",
+                        },
                     },
-                    "required": ["query"]
+                    "required": ["query"],
                 },
-                "handler": self._kb_search
+                "handler": self._kb_search,
             },
             "kb_get": {
                 "description": "Get a specific entry by its ID. Returns full content including body, metadata, sources, and links.",
@@ -97,117 +93,87 @@ class CascadeMCPServer:
                     "properties": {
                         "entry_id": {
                             "type": "string",
-                            "description": "The entry ID (e.g., '2025-01-20--event-slug' or 'miller-stephen')"
+                            "description": "The entry ID (e.g., '2025-01-20--event-slug' or 'miller-stephen')",
                         },
                         "kb_name": {
                             "type": "string",
-                            "description": "KB name (optional - will search all KBs if not provided)"
-                        }
+                            "description": "KB name (optional - will search all KBs if not provided)",
+                        },
                     },
-                    "required": ["entry_id"]
+                    "required": ["entry_id"],
                 },
-                "handler": self._kb_get
+                "handler": self._kb_get,
             },
             "kb_create": {
                 "description": "Create a new entry in a knowledge base. For events KB, creates timeline events. For research KB, creates actor/organization/theme entries.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "kb_name": {
-                            "type": "string",
-                            "description": "Target KB name"
-                        },
+                        "kb_name": {"type": "string", "description": "Target KB name"},
                         "entry_type": {
                             "type": "string",
-                            "description": "Entry type: event, actor, organization, theme, mechanism"
+                            "description": "Entry type: event, actor, organization, theme, mechanism",
                         },
-                        "title": {
-                            "type": "string",
-                            "description": "Entry title"
-                        },
-                        "body": {
-                            "type": "string",
-                            "description": "Entry body content (markdown)"
-                        },
+                        "title": {"type": "string", "description": "Entry title"},
+                        "body": {"type": "string", "description": "Entry body content (markdown)"},
                         "date": {
                             "type": "string",
-                            "description": "Event date (YYYY-MM-DD) - required for events"
+                            "description": "Event date (YYYY-MM-DD) - required for events",
                         },
                         "importance": {
                             "type": "integer",
-                            "description": "Importance score 1-10 (default 5)"
+                            "description": "Importance score 1-10 (default 5)",
                         },
                         "tags": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Tags for categorization"
+                            "description": "Tags for categorization",
                         },
                         "actors": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Actors involved (for events)"
+                            "description": "Actors involved (for events)",
                         },
-                        "role": {
-                            "type": "string",
-                            "description": "Role description (for actors)"
-                        }
+                        "role": {"type": "string", "description": "Role description (for actors)"},
                     },
-                    "required": ["kb_name", "entry_type", "title"]
+                    "required": ["kb_name", "entry_type", "title"],
                 },
-                "handler": self._kb_create
+                "handler": self._kb_create,
             },
             "kb_update": {
                 "description": "Update an existing entry. Only provided fields are updated.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "entry_id": {
-                            "type": "string",
-                            "description": "Entry ID to update"
-                        },
-                        "kb_name": {
-                            "type": "string",
-                            "description": "KB name"
-                        },
+                        "entry_id": {"type": "string", "description": "Entry ID to update"},
+                        "kb_name": {"type": "string", "description": "KB name"},
                         "title": {"type": "string"},
                         "body": {"type": "string"},
                         "importance": {"type": "integer"},
                         "tags": {"type": "array", "items": {"type": "string"}},
-                        "actors": {"type": "array", "items": {"type": "string"}}
+                        "actors": {"type": "array", "items": {"type": "string"}},
                     },
-                    "required": ["entry_id", "kb_name"]
+                    "required": ["entry_id", "kb_name"],
                 },
-                "handler": self._kb_update
+                "handler": self._kb_update,
             },
             "kb_timeline": {
                 "description": "Get timeline events within a date range, optionally filtered by importance or actor.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "date_from": {
-                            "type": "string",
-                            "description": "Start date (YYYY-MM-DD)"
-                        },
-                        "date_to": {
-                            "type": "string",
-                            "description": "End date (YYYY-MM-DD)"
-                        },
+                        "date_from": {"type": "string", "description": "Start date (YYYY-MM-DD)"},
+                        "date_to": {"type": "string", "description": "End date (YYYY-MM-DD)"},
                         "min_importance": {
                             "type": "integer",
-                            "description": "Minimum importance score (1-10)"
+                            "description": "Minimum importance score (1-10)",
                         },
-                        "actor": {
-                            "type": "string",
-                            "description": "Filter by actor name"
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Maximum results (default 50)"
-                        }
+                        "actor": {"type": "string", "description": "Filter by actor name"},
+                        "limit": {"type": "integer", "description": "Maximum results (default 50)"},
                     },
-                    "required": []
+                    "required": [],
                 },
-                "handler": self._kb_timeline
+                "handler": self._kb_timeline,
             },
             "kb_backlinks": {
                 "description": "Get all entries that link TO a given entry (reverse link lookup).",
@@ -216,16 +182,13 @@ class CascadeMCPServer:
                     "properties": {
                         "entry_id": {
                             "type": "string",
-                            "description": "Entry ID to find backlinks for"
+                            "description": "Entry ID to find backlinks for",
                         },
-                        "kb_name": {
-                            "type": "string",
-                            "description": "KB name"
-                        }
+                        "kb_name": {"type": "string", "description": "KB name"},
                     },
-                    "required": ["entry_id", "kb_name"]
+                    "required": ["entry_id", "kb_name"],
                 },
-                "handler": self._kb_backlinks
+                "handler": self._kb_backlinks,
             },
             "kb_tags": {
                 "description": "Get all tags with their usage counts, optionally filtered by KB.",
@@ -234,16 +197,16 @@ class CascadeMCPServer:
                     "properties": {
                         "kb_name": {
                             "type": "string",
-                            "description": "Filter to specific KB (optional)"
+                            "description": "Filter to specific KB (optional)",
                         },
                         "prefix": {
                             "type": "string",
-                            "description": "Filter tags starting with prefix"
-                        }
+                            "description": "Filter tags starting with prefix",
+                        },
                     },
-                    "required": []
+                    "required": [],
                 },
-                "handler": self._kb_tags
+                "handler": self._kb_tags,
             },
             "kb_actors": {
                 "description": "Get all actors mentioned in timeline events with their mention counts.",
@@ -252,12 +215,12 @@ class CascadeMCPServer:
                     "properties": {
                         "limit": {
                             "type": "integer",
-                            "description": "Maximum actors to return (default 100)"
+                            "description": "Maximum actors to return (default 100)",
                         }
                     },
-                    "required": []
+                    "required": [],
                 },
-                "handler": self._kb_actors
+                "handler": self._kb_actors,
             },
             "kb_index_sync": {
                 "description": "Sync the search index with file changes. Use after editing files directly.",
@@ -266,13 +229,13 @@ class CascadeMCPServer:
                     "properties": {
                         "kb_name": {
                             "type": "string",
-                            "description": "Sync specific KB (optional - syncs all if not provided)"
+                            "description": "Sync specific KB (optional - syncs all if not provided)",
                         }
                     },
-                    "required": []
+                    "required": [],
                 },
-                "handler": self._kb_index_sync
-            }
+                "handler": self._kb_index_sync,
+            },
         }
 
     # Tool handlers
@@ -282,14 +245,16 @@ class CascadeMCPServer:
         kbs = []
         for kb in self.config.knowledge_bases:
             stats = self.db.get_kb_stats(kb.name)
-            kbs.append({
-                "name": kb.name,
-                "type": kb.kb_type.value,
-                "path": str(kb.path),
-                "description": kb.description,
-                "entry_count": stats.get('entry_count', 0) if stats else 0,
-                "read_only": kb.read_only
-            })
+            kbs.append(
+                {
+                    "name": kb.name,
+                    "type": kb.kb_type.value,
+                    "path": str(kb.path),
+                    "description": kb.description,
+                    "entry_count": stats.get("entry_count", 0) if stats else 0,
+                    "read_only": kb.read_only,
+                }
+            )
         return {"knowledge_bases": kbs}
 
     def _kb_search(self, args: dict[str, Any]) -> dict[str, Any]:
@@ -309,14 +274,10 @@ class CascadeMCPServer:
             tags=tags,
             date_from=date_from,
             date_to=date_to,
-            limit=limit
+            limit=limit,
         )
 
-        return {
-            "query": query,
-            "count": len(results),
-            "results": results
-        }
+        return {"query": query, "count": len(results), "results": results}
 
     def _kb_get(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get entry by ID."""
@@ -337,11 +298,11 @@ class CascadeMCPServer:
             return {"error": f"Entry '{entry_id}' not found"}
 
         # Get links
-        outlinks = self.db.get_outlinks(entry_id, result['kb_name'])
-        backlinks = self.db.get_backlinks(entry_id, result['kb_name'])
+        outlinks = self.db.get_outlinks(entry_id, result["kb_name"])
+        backlinks = self.db.get_backlinks(entry_id, result["kb_name"])
 
-        result['outlinks'] = outlinks
-        result['backlinks'] = backlinks
+        result["outlinks"] = outlinks
+        result["backlinks"] = backlinks
 
         return {"entry": result}
 
@@ -368,28 +329,21 @@ class CascadeMCPServer:
                 return {"error": "Date is required for events"}
 
             entry = EventEntry.create(
-                date=date,
-                title=title,
-                body=body,
-                importance=args.get("importance", 5)
+                date=date, title=title, body=body, importance=args.get("importance", 5)
             )
             entry.tags = args.get("tags", [])
             entry.actors = args.get("actors", [])
 
         elif entry_type == "actor":
             entry = ResearchEntry.create_actor(
-                name=title,
-                role=args.get("role", ""),
-                importance=args.get("importance", 5)
+                name=title, role=args.get("role", ""), importance=args.get("importance", 5)
             )
             entry.body = body
             entry.tags = args.get("tags", [])
 
         elif entry_type == "organization":
             entry = ResearchEntry.create_organization(
-                name=title,
-                description=args.get("role", ""),
-                importance=args.get("importance", 5)
+                name=title, description=args.get("role", ""), importance=args.get("importance", 5)
             )
             entry.body = body
             entry.tags = args.get("tags", [])
@@ -400,7 +354,7 @@ class CascadeMCPServer:
                 id=title.lower().replace(" ", "-"),
                 title=title,
                 body=body,
-                entry_subtype=entry_type or "theme"
+                entry_subtype=entry_type or "theme",
             )
             entry.tags = args.get("tags", [])
 
@@ -410,11 +364,7 @@ class CascadeMCPServer:
         # Index
         self.index_mgr.index_entry(entry, kb_name, file_path)
 
-        return {
-            "created": True,
-            "entry_id": entry.id,
-            "file_path": str(file_path)
-        }
+        return {"created": True, "entry_id": entry.id, "file_path": str(file_path)}
 
     def _kb_update(self, args: dict[str, Any]) -> dict[str, Any]:
         """Update an existing entry."""
@@ -443,7 +393,7 @@ class CascadeMCPServer:
             entry.importance = args["importance"]
         if "tags" in args:
             entry.tags = args["tags"]
-        if "actors" in args and hasattr(entry, 'actors'):
+        if "actors" in args and hasattr(entry, "actors"):
             entry.actors = args["actors"]
 
         # Save
@@ -452,11 +402,7 @@ class CascadeMCPServer:
         # Re-index
         self.index_mgr.index_entry(entry, kb_name, file_path)
 
-        return {
-            "updated": True,
-            "entry_id": entry.id,
-            "file_path": str(file_path)
-        }
+        return {"updated": True, "entry_id": entry.id, "file_path": str(file_path)}
 
     def _kb_timeline(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get timeline events."""
@@ -467,26 +413,20 @@ class CascadeMCPServer:
         limit = args.get("limit", 50)
 
         results = self.db.get_timeline(
-            date_from=date_from,
-            date_to=date_to,
-            min_importance=min_importance
+            date_from=date_from, date_to=date_to, min_importance=min_importance
         )
 
         # Filter by actor if specified
         if actor:
             actor_lower = actor.lower()
             results = [
-                r for r in results
-                if any(actor_lower in a.lower() for a in (r.get('actors') or []))
+                r for r in results if any(actor_lower in a.lower() for a in (r.get("actors") or []))
             ]
 
         # Apply limit
         results = results[:limit]
 
-        return {
-            "count": len(results),
-            "events": results
-        }
+        return {"count": len(results), "events": results}
 
     def _kb_backlinks(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get backlinks to an entry."""
@@ -495,11 +435,7 @@ class CascadeMCPServer:
 
         backlinks = self.db.get_backlinks(entry_id, kb_name)
 
-        return {
-            "entry_id": entry_id,
-            "backlink_count": len(backlinks),
-            "backlinks": backlinks
-        }
+        return {"entry_id": entry_id, "backlink_count": len(backlinks), "backlinks": backlinks}
 
     def _kb_tags(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get all tags with counts."""
@@ -528,15 +464,12 @@ class CascadeMCPServer:
             rows = self.db.conn.execute(query).fetchall()
 
         tags = [
-            {"tag": row['name'], "count": row['count']}
+            {"tag": row["name"], "count": row["count"]}
             for row in rows
-            if row['name'].startswith(prefix)
+            if row["name"].startswith(prefix)
         ]
 
-        return {
-            "tag_count": len(tags),
-            "tags": tags
-        }
+        return {"tag_count": len(tags), "tags": tags}
 
     def _kb_actors(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get all actors with mention counts."""
@@ -551,15 +484,9 @@ class CascadeMCPServer:
         """
         rows = self.db.conn.execute(query, (limit,)).fetchall()
 
-        actors = [
-            {"actor": row['actor_name'], "mentions": row['mentions']}
-            for row in rows
-        ]
+        actors = [{"actor": row["actor_name"], "mentions": row["mentions"]} for row in rows]
 
-        return {
-            "actor_count": len(actors),
-            "actors": actors
-        }
+        return {"actor_count": len(actors), "actors": actors}
 
     def _kb_index_sync(self, args: dict[str, Any]) -> dict[str, Any]:
         """Sync index with file changes."""
@@ -569,9 +496,9 @@ class CascadeMCPServer:
 
         return {
             "synced": True,
-            "added": results['added'],
-            "updated": results['updated'],
-            "removed": results['removed']
+            "added": results["added"],
+            "updated": results["updated"],
+            "removed": results["removed"],
         }
 
     # MCP Protocol Implementation
@@ -579,11 +506,7 @@ class CascadeMCPServer:
     def get_tools_list(self) -> list[dict[str, Any]]:
         """Return list of available tools in MCP format."""
         return [
-            {
-                "name": name,
-                "description": meta["description"],
-                "inputSchema": meta["inputSchema"]
-            }
+            {"name": name, "description": meta["description"], "inputSchema": meta["inputSchema"]}
             for name, meta in self.tools.items()
         ]
 
@@ -610,24 +533,13 @@ class CascadeMCPServer:
                 "id": msg_id,
                 "result": {
                     "protocolVersion": "2024-11-05",
-                    "capabilities": {
-                        "tools": {}
-                    },
-                    "serverInfo": {
-                        "name": "cascade-research",
-                        "version": "0.1.0"
-                    }
-                }
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "cascade-research", "version": "0.1.0"},
+                },
             }
 
         elif method == "tools/list":
-            return {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {
-                    "tools": self.get_tools_list()
-                }
-            }
+            return {"jsonrpc": "2.0", "id": msg_id, "result": {"tools": self.get_tools_list()}}
 
         elif method == "tools/call":
             tool_name = params.get("name")
@@ -638,23 +550,15 @@ class CascadeMCPServer:
                 "jsonrpc": "2.0",
                 "id": msg_id,
                 "result": {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": json.dumps(result, indent=2, default=str)
-                        }
-                    ]
-                }
+                    "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}]
+                },
             }
 
         else:
             return {
                 "jsonrpc": "2.0",
                 "id": msg_id,
-                "error": {
-                    "code": -32601,
-                    "message": f"Method not found: {method}"
-                }
+                "error": {"code": -32601, "message": f"Method not found: {method}"},
             }
 
     def run_stdio(self):

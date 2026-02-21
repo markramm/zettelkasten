@@ -14,6 +14,7 @@ from typing import Any
 
 class VerificationStatus(str, Enum):
     """Verification status for sources and claims."""
+
     UNVERIFIED = "unverified"
     CLAIMED = "claimed"
     REVIEWED = "reviewed"
@@ -23,6 +24,7 @@ class VerificationStatus(str, Enum):
 
 class EventStatus(str, Enum):
     """Status for timeline events."""
+
     CONFIRMED = "confirmed"
     DISPUTED = "disputed"
     ALLEGED = "alleged"
@@ -31,6 +33,7 @@ class EventStatus(str, Enum):
 
 class ResearchStatus(str, Enum):
     """Research completion status."""
+
     STUB = "stub"
     PARTIAL = "partial"
     DRAFT = "draft"
@@ -40,6 +43,7 @@ class ResearchStatus(str, Enum):
 
 class FtMSchema(str, Enum):
     """FollowTheMoney schema types for export."""
+
     PERSON = "Person"
     ORGANIZATION = "Organization"
     EVENT = "Event"
@@ -74,12 +78,15 @@ class Source:
 
     This is a first-class object for tracking provenance.
     """
+
     title: str
     url: str
     outlet: str = ""
     date: str | None = None
     author: str = ""
-    source_type: str = "news"  # news, academic, court_filing, government, leaked, interview, social_media
+    source_type: str = (
+        "news"  # news, academic, court_filing, government, leaked, interview, social_media
+    )
     verified: bool = False
     verified_date: str | None = None
     verified_by: str = ""
@@ -90,48 +97,48 @@ class Source:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
-        result = {'title': self.title, 'url': self.url}
+        result = {"title": self.title, "url": self.url}
         if self.outlet:
-            result['outlet'] = self.outlet
+            result["outlet"] = self.outlet
         if self.date:
-            result['date'] = self.date
+            result["date"] = self.date
         if self.author:
-            result['author'] = self.author
+            result["author"] = self.author
         if self.source_type != "news":
-            result['type'] = self.source_type
+            result["type"] = self.source_type
         if self.verified:
-            result['verified'] = self.verified
+            result["verified"] = self.verified
             if self.verified_date:
-                result['verified_date'] = self.verified_date
+                result["verified_date"] = self.verified_date
             if self.verified_by:
-                result['verified_by'] = self.verified_by
+                result["verified_by"] = self.verified_by
         if self.archive_url:
-            result['archive_url'] = self.archive_url
+            result["archive_url"] = self.archive_url
         if self.key_facts_confirmed:
-            result['key_facts_confirmed'] = self.key_facts_confirmed
+            result["key_facts_confirmed"] = self.key_facts_confirmed
         if self.confidence != "unverified":
-            result['confidence'] = self.confidence
+            result["confidence"] = self.confidence
         if self.access != "public":
-            result['access'] = self.access
+            result["access"] = self.access
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'Source':
+    def from_dict(cls, data: dict[str, Any]) -> "Source":
         """Create from dictionary."""
         return cls(
-            title=data.get('title', ''),
-            url=data.get('url', ''),
-            outlet=data.get('outlet', ''),
-            date=data.get('date'),
-            author=data.get('author', ''),
-            source_type=data.get('type', 'news'),
-            verified=data.get('verified', False),
-            verified_date=data.get('verified_date'),
-            verified_by=data.get('verified_by', ''),
-            archive_url=data.get('archive_url', ''),
-            key_facts_confirmed=data.get('key_facts_confirmed', []),
-            confidence=data.get('confidence', 'unverified'),
-            access=data.get('access', 'public'),
+            title=data.get("title", ""),
+            url=data.get("url", ""),
+            outlet=data.get("outlet", ""),
+            date=data.get("date"),
+            author=data.get("author", ""),
+            source_type=data.get("type", "news"),
+            verified=data.get("verified", False),
+            verified_date=data.get("verified_date"),
+            verified_by=data.get("verified_by", ""),
+            archive_url=data.get("archive_url", ""),
+            key_facts_confirmed=data.get("key_facts_confirmed", []),
+            confidence=data.get("confidence", "unverified"),
+            access=data.get("access", "public"),
         )
 
 
@@ -142,6 +149,7 @@ class Link:
 
     Supports both Zettelkasten-style note links and FtM-compatible entity relationships.
     """
+
     target: str  # Target entry ID or path
     relation: str  # Relationship type
     note: str = ""  # Optional description
@@ -149,28 +157,28 @@ class Link:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
-        result = {'target': self.target, 'relation': self.relation}
+        result = {"target": self.target, "relation": self.relation}
         if self.note:
-            result['note'] = self.note
+            result["note"] = self.note
         if self.kb:
-            result['kb'] = self.kb
+            result["kb"] = self.kb
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'Link':
+    def from_dict(cls, data: dict[str, Any]) -> "Link":
         """Create from dictionary."""
         # Handle legacy format {to: id, type: relation}
-        if 'to' in data:
+        if "to" in data:
             return cls(
-                target=data['to'],
-                relation=data.get('type', 'related'),
-                note=data.get('description', ''),
+                target=data["to"],
+                relation=data.get("type", "related"),
+                note=data.get("description", ""),
             )
         return cls(
-            target=data.get('target', ''),
-            relation=data.get('relation', 'related'),
-            note=data.get('note', ''),
-            kb=data.get('kb', ''),
+            target=data.get("target", ""),
+            relation=data.get("relation", "related"),
+            note=data.get("note", ""),
+            kb=data.get("kb", ""),
         )
 
 
@@ -202,7 +210,6 @@ RELATIONSHIP_TYPES: dict[str, dict[str, Any]] = {
     "located_at": {"inverse": "location_of", "ftm": None},
     "location_of": {"inverse": "located_at", "ftm": None},
     "related_to": {"inverse": "related_to", "ftm": FtMSchema.UNKNOWN_LINK},
-
     # Zettelkasten note relationships
     "supports": {"inverse": "supported_by", "ftm": None},
     "supported_by": {"inverse": "supports", "ftm": None},
@@ -244,6 +251,7 @@ class Provenance:
 
     Tracks who contributed what and when.
     """
+
     created_by: str = ""
     created_date: str = ""
     last_modified_by: str = ""
@@ -259,54 +267,55 @@ class Provenance:
         """Convert to dictionary (only non-empty fields)."""
         result = {}
         if self.created_by:
-            result['created_by'] = self.created_by
+            result["created_by"] = self.created_by
         if self.created_date:
-            result['created_date'] = self.created_date
+            result["created_date"] = self.created_date
         if self.last_modified_by:
-            result['last_modified_by'] = self.last_modified_by
+            result["last_modified_by"] = self.last_modified_by
         if self.last_modified_date:
-            result['last_modified_date'] = self.last_modified_date
+            result["last_modified_date"] = self.last_modified_date
         if self.contributors:
-            result['contributors'] = self.contributors
+            result["contributors"] = self.contributors
         if self.agent_version:
-            result['agent_version'] = self.agent_version
-            result['agent_confidence'] = self.agent_confidence
+            result["agent_version"] = self.agent_version
+            result["agent_confidence"] = self.agent_confidence
         if self.requires_human_review:
-            result['requires_human_review'] = self.requires_human_review
+            result["requires_human_review"] = self.requires_human_review
         if self.auto_generated_fields:
-            result['auto_generated_fields'] = self.auto_generated_fields
+            result["auto_generated_fields"] = self.auto_generated_fields
         if self.human_verified_fields:
-            result['human_verified_fields'] = self.human_verified_fields
+            result["human_verified_fields"] = self.human_verified_fields
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'Provenance':
+    def from_dict(cls, data: dict[str, Any]) -> "Provenance":
         """Create from dictionary."""
         return cls(
-            created_by=data.get('created_by', ''),
-            created_date=data.get('created_date', ''),
-            last_modified_by=data.get('last_modified_by', ''),
-            last_modified_date=data.get('last_modified_date', ''),
-            contributors=data.get('contributors', []),
-            agent_version=data.get('agent_version', ''),
-            agent_confidence=data.get('agent_confidence', 1.0),
-            requires_human_review=data.get('requires_human_review', False),
-            auto_generated_fields=data.get('auto_generated_fields', []),
-            human_verified_fields=data.get('human_verified_fields', []),
+            created_by=data.get("created_by", ""),
+            created_date=data.get("created_date", ""),
+            last_modified_by=data.get("last_modified_by", ""),
+            last_modified_date=data.get("last_modified_date", ""),
+            contributors=data.get("contributors", []),
+            agent_version=data.get("agent_version", ""),
+            agent_confidence=data.get("agent_confidence", 1.0),
+            requires_human_review=data.get("requires_human_review", False),
+            auto_generated_fields=data.get("auto_generated_fields", []),
+            human_verified_fields=data.get("human_verified_fields", []),
         )
 
 
 # Validation utilities
 
+
 def validate_date(date_str: str) -> bool:
     """Validate date string format (YYYY-MM-DD)."""
     if not date_str:
         return False
-    pattern = r'^\d{4}-\d{2}-\d{2}$'
+    pattern = r"^\d{4}-\d{2}-\d{2}$"
     if not re.match(pattern, date_str):
         return False
     try:
-        datetime.strptime(date_str, '%Y-%m-%d')
+        datetime.strptime(date_str, "%Y-%m-%d")
         return True
     except ValueError:
         return False
@@ -323,11 +332,11 @@ def validate_importance(importance: Any) -> bool:
 
 def validate_event_id(event_id: str) -> bool:
     """Validate event ID format (YYYY-MM-DD--slug)."""
-    pattern = r'^\d{4}-\d{2}-\d{2}--[a-z0-9-]+$'
+    pattern = r"^\d{4}-\d{2}-\d{2}--[a-z0-9-]+$"
     return bool(re.match(pattern, event_id))
 
 
 def generate_event_id(date: str, title: str) -> str:
     """Generate event ID from date and title."""
-    slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')[:50]
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:50]
     return f"{date}--{slug}"

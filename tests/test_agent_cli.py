@@ -4,20 +4,21 @@ Tests for Agent CLIs (crk-read and crk).
 Tests both JSON output format and command functionality.
 """
 
-import pytest
 import json
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
-import sys
 
-from cascade_research.read_cli import ReadOnlyCLI, EXIT_OK, EXIT_NOT_FOUND, EXIT_KB_NOT_FOUND
-from cascade_research.write_cli import FullAccessCLI
-from cascade_research.storage.database import CascadeDB
-from cascade_research.storage.repository import KBRepository
-from cascade_research.storage.index import IndexManager
-from cascade_research.config import KBConfig, KBType, CascadeConfig, Settings
+import pytest
+
+from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
 from cascade_research.models import EventEntry, ResearchEntry
+from cascade_research.read_cli import EXIT_NOT_FOUND, EXIT_OK, ReadOnlyCLI
+from cascade_research.storage.database import CascadeDB
+from cascade_research.storage.index import IndexManager
+from cascade_research.storage.repository import KBRepository
+from cascade_research.write_cli import FullAccessCLI
 
 
 class TestReadOnlyCLI:
@@ -50,8 +51,7 @@ class TestReadOnlyCLI:
             )
 
             config = CascadeConfig(
-                knowledge_bases=[events_kb, research_kb],
-                settings=Settings(index_path=db_path)
+                knowledge_bases=[events_kb, research_kb], settings=Settings(index_path=db_path)
             )
 
             # Create sample entries
@@ -61,20 +61,18 @@ class TestReadOnlyCLI:
                     date=f"2025-01-{10+i:02d}",
                     title=f"Test Event {i}",
                     body=f"Body for event {i} about immigration policy.",
-                    importance=5 + i
+                    importance=5 + i,
                 )
-                event.tags = ['test', 'immigration']
-                event.actors = ['Stephen Miller', 'Tom Homan']
+                event.tags = ["test", "immigration"]
+                event.actors = ["Stephen Miller", "Tom Homan"]
                 events_repo.save(event)
 
             research_repo = KBRepository(research_kb)
             actor = ResearchEntry.create_actor(
-                name="Stephen Miller",
-                role="Immigration policy architect",
-                importance=9
+                name="Stephen Miller", role="Immigration policy architect", importance=9
             )
             actor.body = "Stephen Miller biography."
-            actor.tags = ['trump-admin', 'immigration']
+            actor.tags = ["trump-admin", "immigration"]
             research_repo.save(actor)
 
             cli = ReadOnlyCLI()
@@ -84,7 +82,7 @@ class TestReadOnlyCLI:
             index_mgr = IndexManager(cli.db, config)
             index_mgr.index_all()
 
-            yield {'cli': cli, 'config': config}
+            yield {"cli": cli, "config": config}
 
             cli.db.close()
 
@@ -93,8 +91,8 @@ class TestReadOnlyCLI:
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {})()
+        cli = setup["cli"]
+        args = type("Args", (), {})()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -103,18 +101,18 @@ class TestReadOnlyCLI:
         output = f.getvalue()
         result = json.loads(output)
 
-        assert result['ok'] is True
-        assert result['code'] == 0
-        assert 'data' in result
-        assert 'kbs' in result['data']
+        assert result["ok"] is True
+        assert result["code"] == 0
+        assert "data" in result
+        assert "kbs" in result["data"]
 
     def test_list_kbs(self, setup):
         """Test listing knowledge bases."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {})()
+        cli = setup["cli"]
+        args = type("Args", (), {})()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -122,23 +120,27 @@ class TestReadOnlyCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert result['data']['total'] == 2
+        assert result["data"]["total"] == 2
 
     def test_search(self, setup):
         """Test search command."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {
-            'query': 'immigration',
-            'kb': None,
-            'type': None,
-            'tags': None,
-            'date_from': None,
-            'date_to': None,
-            'limit': 20
-        })()
+        cli = setup["cli"]
+        args = type(
+            "Args",
+            (),
+            {
+                "query": "immigration",
+                "kb": None,
+                "type": None,
+                "tags": None,
+                "date_from": None,
+                "date_to": None,
+                "limit": 20,
+            },
+        )()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -146,35 +148,41 @@ class TestReadOnlyCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert result['data']['count'] >= 1
+        assert result["data"]["count"] >= 1
 
     def test_get_entry(self, setup):
         """Test getting entry by ID."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
+        cli = setup["cli"]
 
         # First search to get an ID
-        search_args = type('Args', (), {
-            'query': 'Stephen Miller',
-            'kb': 'test-research',
-            'type': None, 'tags': None, 'date_from': None, 'date_to': None, 'limit': 5
-        })()
+        search_args = type(
+            "Args",
+            (),
+            {
+                "query": "Stephen Miller",
+                "kb": "test-research",
+                "type": None,
+                "tags": None,
+                "date_from": None,
+                "date_to": None,
+                "limit": 5,
+            },
+        )()
 
         f = io.StringIO()
         with redirect_stdout(f):
             cli.cmd_search(search_args)
 
         search_result = json.loads(f.getvalue())
-        if search_result['data']['count'] > 0:
-            entry_id = search_result['data']['results'][0]['id']
+        if search_result["data"]["count"] > 0:
+            entry_id = search_result["data"]["results"][0]["id"]
 
-            args = type('Args', (), {
-                'entry_id': entry_id,
-                'kb': 'test-research',
-                'with_links': False
-            })()
+            args = type(
+                "Args", (), {"entry_id": entry_id, "kb": "test-research", "with_links": False}
+            )()
 
             f = io.StringIO()
             with redirect_stdout(f):
@@ -182,19 +190,17 @@ class TestReadOnlyCLI:
 
             assert exit_code == EXIT_OK
             result = json.loads(f.getvalue())
-            assert 'entry' in result['data']
+            assert "entry" in result["data"]
 
     def test_get_not_found(self, setup):
         """Test getting non-existent entry."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {
-            'entry_id': 'nonexistent-entry-id',
-            'kb': None,
-            'with_links': False
-        })()
+        cli = setup["cli"]
+        args = type(
+            "Args", (), {"entry_id": "nonexistent-entry-id", "kb": None, "with_links": False}
+        )()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -202,22 +208,26 @@ class TestReadOnlyCLI:
 
         assert exit_code == EXIT_NOT_FOUND
         result = json.loads(f.getvalue())
-        assert result['ok'] is False
-        assert result['error']['code'] == 'NOT_FOUND'
+        assert result["ok"] is False
+        assert result["error"]["code"] == "NOT_FOUND"
 
     def test_timeline(self, setup):
         """Test timeline query."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {
-            'date_from': '2025-01-01',
-            'date_to': '2025-12-31',
-            'min_importance': None,
-            'actor': None,
-            'limit': 50
-        })()
+        cli = setup["cli"]
+        args = type(
+            "Args",
+            (),
+            {
+                "date_from": "2025-01-01",
+                "date_to": "2025-12-31",
+                "min_importance": None,
+                "actor": None,
+                "limit": 50,
+            },
+        )()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -225,15 +235,15 @@ class TestReadOnlyCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert 'events' in result['data']
+        assert "events" in result["data"]
 
     def test_tags(self, setup):
         """Test getting tags."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {'kb': None, 'limit': 100})()
+        cli = setup["cli"]
+        args = type("Args", (), {"kb": None, "limit": 100})()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -241,15 +251,15 @@ class TestReadOnlyCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert 'tags' in result['data']
+        assert "tags" in result["data"]
 
     def test_actors(self, setup):
         """Test getting actors."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {'limit': 100})()
+        cli = setup["cli"]
+        args = type("Args", (), {"limit": 100})()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -257,15 +267,15 @@ class TestReadOnlyCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert 'actors' in result['data']
+        assert "actors" in result["data"]
 
     def test_stats(self, setup):
         """Test getting stats."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {})()
+        cli = setup["cli"]
+        args = type("Args", (), {})()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -273,7 +283,7 @@ class TestReadOnlyCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert 'total_entries' in result['data']
+        assert "total_entries" in result["data"]
 
 
 class TestFullAccessCLI:
@@ -296,8 +306,7 @@ class TestFullAccessCLI:
             )
 
             config = CascadeConfig(
-                knowledge_bases=[events_kb],
-                settings=Settings(index_path=db_path)
+                knowledge_bases=[events_kb], settings=Settings(index_path=db_path)
             )
 
             cli = FullAccessCLI()
@@ -306,7 +315,7 @@ class TestFullAccessCLI:
 
             IndexManager(cli.db, config).index_all()
 
-            yield {'cli': cli, 'config': config, 'events_kb': events_kb}
+            yield {"cli": cli, "config": config, "events_kb": events_kb}
 
             cli.db.close()
 
@@ -315,18 +324,22 @@ class TestFullAccessCLI:
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {
-            'kb': 'test-events',
-            'type': 'event',
-            'title': 'New Test Event',
-            'body': 'Test body.',
-            'date': '2025-02-01',
-            'importance': 7,
-            'tags': 'new,test',
-            'actors': 'Test Actor',
-            'role': None
-        })()
+        cli = setup["cli"]
+        args = type(
+            "Args",
+            (),
+            {
+                "kb": "test-events",
+                "type": "event",
+                "title": "New Test Event",
+                "body": "Test body.",
+                "date": "2025-02-01",
+                "importance": 7,
+                "tags": "new,test",
+                "actors": "Test Actor",
+                "role": None,
+            },
+        )()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -334,16 +347,16 @@ class TestFullAccessCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert result['data']['created'] is True
-        assert 'id' in result['data']
+        assert result["data"]["created"] is True
+        assert "id" in result["data"]
 
     def test_index_stats(self, setup):
         """Test index stats."""
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {})()
+        cli = setup["cli"]
+        args = type("Args", (), {})()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -356,8 +369,8 @@ class TestFullAccessCLI:
         import io
         from contextlib import redirect_stdout
 
-        cli = setup['cli']
-        args = type('Args', (), {'verbose': False})()
+        cli = setup["cli"]
+        args = type("Args", (), {"verbose": False})()
 
         f = io.StringIO()
         with redirect_stdout(f):
@@ -365,7 +378,7 @@ class TestFullAccessCLI:
 
         assert exit_code == EXIT_OK
         result = json.loads(f.getvalue())
-        assert 'healthy' in result['data']
+        assert "healthy" in result["data"]
 
 
 class TestErrorHandling:
@@ -384,15 +397,15 @@ class TestErrorHandling:
                 code="TEST_ERROR",
                 message="Test error message",
                 hint="Fix it this way",
-                exit_code=99
+                exit_code=99,
             )
 
         result = json.loads(f.getvalue())
-        assert result['ok'] is False
-        assert result['code'] == 99
-        assert result['error']['code'] == 'TEST_ERROR'
-        assert result['error']['message'] == 'Test error message'
-        assert result['error']['hint'] == 'Fix it this way'
+        assert result["ok"] is False
+        assert result["code"] == 99
+        assert result["error"]["code"] == "TEST_ERROR"
+        assert result["error"]["message"] == "Test error message"
+        assert result["error"]["hint"] == "Fix it this way"
 
 
 class TestCLIIntegration:
@@ -401,16 +414,18 @@ class TestCLIIntegration:
     def test_read_cli_help(self):
         """Test that crk-read --help works."""
         from cascade_research.read_cli import main
+
         with pytest.raises(SystemExit) as exc_info:
-            with patch.object(sys, 'argv', ['crk-read', '--help']):
+            with patch.object(sys, "argv", ["crk-read", "--help"]):
                 main()
         assert exc_info.value.code == 0
 
     def test_write_cli_help(self):
         """Test that crk --help works."""
         from cascade_research.write_cli import main
+
         with pytest.raises(SystemExit) as exc_info:
-            with patch.object(sys, 'argv', ['crk', '--help']):
+            with patch.object(sys, "argv", ["crk", "--help"]):
                 main()
         assert exc_info.value.code == 0
 

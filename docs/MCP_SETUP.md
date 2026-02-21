@@ -20,7 +20,7 @@ The Zettelkasten Assistant provides a comprehensive Model Context Protocol (MCP)
 # Install main project
 pip install -r requirements.txt
 
-# Install MCP server dependencies  
+# Install MCP server dependencies
 pip install -r mcp-requirements.txt
 ```
 
@@ -95,11 +95,11 @@ Once configured, Claude will have access to these tools:
 ### `zk_create_note`
 Create a new atomic note with AI-generated summary
 - **title**: The note title
-- **body**: Main content  
+- **body**: Main content
 - **tags**: Array of categorization tags
 - **generate_summary**: Auto-generate AI summary (default: true)
 
-### `zk_search_notes`  
+### `zk_search_notes`
 Search your knowledge base with full-text search
 - **query**: Search query (supports FTS5 syntax like `NEAR/5`, quotes for phrases)
 - **tag**: Optional tag filter
@@ -123,7 +123,7 @@ Find potential connections between notes
 ### `zk_create_link`
 Create typed relationships between notes
 - **source_id**: Source note ID
-- **target_id**: Target note ID  
+- **target_id**: Target note ID
 - **link_type**: Relationship type (`supports`, `refines`, `extends`, `contradicts`, `is_example_of`, `related`)
 - **description**: Optional relationship description
 
@@ -158,7 +158,7 @@ Once configured, you can interact with your Zettelkasten naturally:
 - Ensure data directories exist
 - Validate environment variables
 
-### No Tools Available  
+### No Tools Available
 - Restart Claude Desktop after configuration changes
 - Check the MCP server logs for errors
 - Verify JSON configuration syntax
@@ -193,7 +193,7 @@ export ZK_LOG_LEVEL=DEBUG
 
 ### Research Workflow
 1. **Capture**: "Create a note about quantum computing principles"
-2. **Search**: "Find all notes tagged with 'quantum' or 'physics'"  
+2. **Search**: "Find all notes tagged with 'quantum' or 'physics'"
 3. **Enhance**: "Run the CEQRC workflow on my quantum computing note"
 4. **Connect**: "Suggest links between quantum computing and cryptography notes"
 

@@ -27,7 +27,7 @@ This approach shifts the cognitive burden from tool management to knowledge proc
 
 This system implements the Zettelkasten method digitally with AI assistance:
 - **Atomic Notes**: One idea per note, uniquely identified and timestamped
-- **Bi-directional Linking**: Typed relationships between notes create a knowledge graph  
+- **Bi-directional Linking**: Typed relationships between notes create a knowledge graph
 - **AI-Enhanced Workflow**: Optional LLM assistance for refinement, summarization, and connections
 - **Future-Proof Storage**: Plain Markdown files with YAML frontmatter as the source of truth
 - **MCP Integration**: Expose your knowledge base to AI assistants and agents
@@ -121,7 +121,7 @@ python -m zettelkasten.cli --help
 
 Using the Streamlit UI:
 1. Open http://localhost:8501
-2. Go to "Create / Edit" tab  
+2. Go to "Create / Edit" tab
 3. Enter title: "My First Zettel"
 4. Add content and let AI generate a summary
 5. Add relevant tags
@@ -143,10 +143,10 @@ data/
 ```yaml
 ---
 id: '20250915064516'
-title: 'Machine Learning Fundamentals'  
+title: 'Machine Learning Fundamentals'
 summary: 'Core concepts of ML including supervised, unsupervised learning and model evaluation techniques'
 tags: [ai, learning, algorithms]
-links: 
+links:
   - {to: '20250915064517', type: 'supports'}
 created_at: '2025-09-15T06:45:16Z'
 updated_at: '2025-09-15T06:45:50Z'
@@ -165,20 +165,20 @@ graph TB
     UI[Streamlit UI] --> API[FastAPI REST API]
     CLI[CLI Tools] --> API
     MCP[MCP Server] --> API
-    
+
     API --> WF[Workflow Engine<br/>CEQRC]
     API --> REPO[Note Repository<br/>Markdown Files]
     API --> DB[SQLite Database<br/>FTS5 Index]
-    
+
     WF --> LLM[LLM Service<br/>OpenAI/Stub]
     WF --> META[Metadata Service]
-    
+
     REPO <--> DB
 ```
 
 ### **Database Schema**
 - **zettel**: Core note data (id, title, body, summary, timestamps)
-- **tag**: Tag definitions  
+- **tag**: Tag definitions
 - **zettel_tag**: Note-tag relationships
 - **link**: Typed relationships between notes
 - **zettel_fts**: Full-text search index (FTS5)
@@ -207,7 +207,7 @@ ZK_PORT=8088
 OPENAI_API_KEY=your_key_here
 ZK_LLM_PROVIDER=openai  # or 'stub' for testing
 
-# Summary Settings  
+# Summary Settings
 ZK_SUMMARY_MAX_LENGTH=280
 
 # UI
@@ -221,7 +221,7 @@ ZK_STREAMLIT_PORT=8501
 #### Notes
 - `POST /notes` - Create note (auto-generates summary if not provided)
 - `GET /notes/{id}` - Retrieve note with all metadata
-- `PUT /notes/{id}` - Update note (regenerates summary if body changed) 
+- `PUT /notes/{id}` - Update note (regenerates summary if body changed)
 - `DELETE /notes/{id}` - Delete note and relationships
 
 #### Search & Discovery
@@ -278,7 +278,7 @@ Test coverage includes:
 
 ### **AI-Powered Features**
 - **Smart Summaries**: Generate concise summaries within character limits
-- **Metadata Suggestions**: Improve titles, tags, and categorization  
+- **Metadata Suggestions**: Improve titles, tags, and categorization
 - **Content Refinement**: Polish and improve note content
 - **Link Discovery**: Find relationships between notes
 - **Feynman Probing**: Generate questions to test understanding
@@ -305,7 +305,7 @@ python setup_mcp.py  # Automated setup and config generation
 {
   "mcpServers": {
     "zettelkasten": {
-      "command": "python", 
+      "command": "python",
       "args": ["path/to/mcp_server.py"],
       "env": {"OPENAI_API_KEY": "your_key_here"}
     }
@@ -356,7 +356,7 @@ See `docs/MCP_SETUP.md` for complete integration guide.
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Add tests for new functionality  
+4. Add tests for new functionality
 5. Run the test suite (`pytest`)
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to the branch (`git push origin feature/amazing-feature`)

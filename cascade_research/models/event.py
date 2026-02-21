@@ -30,6 +30,7 @@ class EventEntry(Entry):
     - Actors involved
     - Single-paragraph body (typically)
     """
+
     # Event-specific fields
     date: str = ""  # YYYY-MM-DD canonical date
     importance: int = 5
@@ -51,79 +52,79 @@ class EventEntry(Entry):
     def to_frontmatter(self) -> dict[str, Any]:
         """Convert to YAML frontmatter dictionary."""
         meta: dict[str, Any] = {
-            'id': self.id,
-            'date': self.date,
-            'importance': self.importance,
-            'title': self.title,
+            "id": self.id,
+            "date": self.date,
+            "importance": self.importance,
+            "title": self.title,
         }
 
         if self.status != EventStatus.CONFIRMED:
-            meta['status'] = self.status.value
+            meta["status"] = self.status.value
 
         if self.location:
-            meta['location'] = self.location
+            meta["location"] = self.location
 
         if self.actors:
-            meta['actors'] = self.actors
+            meta["actors"] = self.actors
 
         if self.tags:
-            meta['tags'] = self.tags
+            meta["tags"] = self.tags
 
         if self.capture_lanes:
-            meta['capture_lanes'] = self.capture_lanes
+            meta["capture_lanes"] = self.capture_lanes
 
         if self.sources:
-            meta['sources'] = [s.to_dict() for s in self.sources]
+            meta["sources"] = [s.to_dict() for s in self.sources]
 
         if self.notes:
-            meta['notes'] = self.notes
+            meta["notes"] = self.notes
 
         if self.academic_significance:
-            meta['academic_significance'] = self.academic_significance
+            meta["academic_significance"] = self.academic_significance
 
         if self.links:
-            meta['links'] = [l.to_dict() for l in self.links]
+            meta["links"] = [l.to_dict() for l in self.links]
 
         if self.provenance:
             prov = self.provenance.to_dict()
             if prov:
-                meta['provenance'] = prov
+                meta["provenance"] = prov
 
         return meta
 
     @classmethod
-    def from_frontmatter(cls, meta: dict[str, Any], body: str) -> 'EventEntry':
+    def from_frontmatter(cls, meta: dict[str, Any], body: str) -> "EventEntry":
         """Create from parsed frontmatter and body."""
         # Parse status
-        status_str = meta.get('status', 'confirmed')
+        status_str = meta.get("status", "confirmed")
         try:
             status = EventStatus(status_str)
         except ValueError:
             status = EventStatus.CONFIRMED
 
         # Parse provenance
-        prov_data = meta.get('provenance')
+        prov_data = meta.get("provenance")
         provenance = Provenance.from_dict(prov_data) if prov_data else None
 
         return cls(
-            id=str(meta.get('id', '')),
-            title=meta.get('title', ''),
+            id=str(meta.get("id", "")),
+            title=meta.get("title", ""),
             body=body,
-            summary=meta.get('summary', ''),
-            date=meta.get('date', ''),
-            importance=int(meta.get('importance', 5)),
+            summary=meta.get("summary", ""),
+            date=meta.get("date", ""),
+            importance=int(meta.get("importance", 5)),
             status=status,
-            location=meta.get('location', ''),
-            actors=meta.get('actors', []) or [],
-            tags=meta.get('tags', []) or [],
-            capture_lanes=meta.get('capture_lanes', []) or [],
-            sources=parse_sources(meta.get('sources')),
-            notes=meta.get('notes', ''),
-            academic_significance=meta.get('academic_significance', ''),
-            links=parse_links(meta.get('links')),
+            location=meta.get("location", ""),
+            actors=meta.get("actors", []) or [],
+            tags=meta.get("tags", []) or [],
+            capture_lanes=meta.get("capture_lanes", []) or [],
+            sources=parse_sources(meta.get("sources")),
+            notes=meta.get("notes", ""),
+            academic_significance=meta.get("academic_significance", ""),
+            links=parse_links(meta.get("links")),
             provenance=provenance,
-            created_at=parse_datetime(meta.get('created_at')),
-            updated_at=parse_datetime(meta.get('updated_at')),
+            created_at=parse_datetime(meta.get("created_at")),
+            updated_at=parse_datetime(meta.get("updated_at")),
         )
 
     def validate(self) -> list[str]:
@@ -148,42 +149,37 @@ class EventEntry(Entry):
     def to_ftm(self) -> dict[str, Any]:
         """Export as FollowTheMoney Event entity."""
         properties: dict[str, list[str]] = {
-            'name': [self.title],
+            "name": [self.title],
         }
 
         if self.date:
-            properties['date'] = [self.date]
+            properties["date"] = [self.date]
 
         if self.location:
-            properties['location'] = [self.location]
+            properties["location"] = [self.location]
 
         if self.actors:
-            properties['involved'] = self.actors
+            properties["involved"] = self.actors
 
         if self.summary:
-            properties['summary'] = [self.summary]
+            properties["summary"] = [self.summary]
         elif self.body:
             # Use first 500 chars of body as summary
-            properties['summary'] = [self.body[:500]]
+            properties["summary"] = [self.body[:500]]
 
         if self.sources:
-            properties['sourceUrl'] = [s.url for s in self.sources if s.url]
+            properties["sourceUrl"] = [s.url for s in self.sources if s.url]
 
         return {
-            'id': self.id,
-            'schema': FtMSchema.EVENT.value,
-            'properties': properties,
+            "id": self.id,
+            "schema": FtMSchema.EVENT.value,
+            "properties": properties,
         }
 
     @classmethod
-    def create(cls, date: str, title: str, body: str = "", **kwargs) -> 'EventEntry':
+    def create(cls, date: str, title: str, body: str = "", **kwargs) -> "EventEntry":
         """Create a new event with auto-generated ID."""
         from ..schema import generate_event_id
+
         event_id = generate_event_id(date, title)
-        return cls(
-            id=event_id,
-            title=title,
-            body=body,
-            date=date,
-            **kwargs
-        )
+        return cls(id=event_id, title=title, body=body, date=date, **kwargs)

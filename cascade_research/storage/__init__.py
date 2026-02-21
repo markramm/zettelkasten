@@ -8,4 +8,4 @@ from .database import CascadeDB
 from .index import IndexManager
 from .repository import KBRepository
 
-__all__ = ['CascadeDB', 'KBRepository', 'IndexManager']
+__all__ = ["CascadeDB", "KBRepository", "IndexManager"]

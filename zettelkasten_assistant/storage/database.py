@@ -1,10 +1,10 @@
-
 import sqlite3
-from pathlib import Path
-from typing import List, Dict, Optional
 from datetime import datetime
+from pathlib import Path
+
 from ..models.note import Note
 from .utils import inverse_link_type
+
 
 class ZKDB:
     def __init__(self, db_path: Path):
@@ -77,7 +77,8 @@ class ZKDB:
     # ------------------- Note CRUD -------------------
     def upsert_note(self, note: Note):
         c = self.conn.cursor()
-        c.execute("""
+        c.execute(
+            """
             INSERT INTO zettel(id, title, body, summary, created_at, updated_at)
             VALUES(?,?,?,?,?,?)
             ON CONFLICT(id) DO UPDATE SET
@@ -85,8 +86,16 @@ class ZKDB:
                 body=excluded.body,
                 summary=excluded.summary,
                 updated_at=excluded.updated_at
-        """, (note.id, note.title, note.body, note.summary,
-               note.created_at.isoformat(), note.updated_at.isoformat()))
+        """,
+            (
+                note.id,
+                note.title,
+                note.body,
+                note.summary,
+                note.created_at.isoformat(),
+                note.updated_at.isoformat(),
+            ),
+        )
         # Tags
         c.execute("DELETE FROM zettel_tag WHERE zettel_id=?", (note.id,))
         for t in note.tags:
@@ -96,30 +105,41 @@ class ZKDB:
         # Links (outgoing)
         c.execute("DELETE FROM link WHERE source_id=?", (note.id,))
         for l in note.links:
-            to = l.get("to"); typ = l.get("type","related")
+            to = l.get("to")
+            typ = l.get("type", "related")
             inv = inverse_link_type(typ)
-            c.execute("INSERT INTO link(source_id, target_id, type, inverse_type, created_at) VALUES(?,?,?,?,?)",
-                      (note.id, to, typ, inv, datetime.utcnow().isoformat()))
+            c.execute(
+                "INSERT INTO link(source_id, target_id, type, inverse_type, created_at) VALUES(?,?,?,?,?)",
+                (note.id, to, typ, inv, datetime.utcnow().isoformat()),
+            )
         self.conn.commit()
 
     def delete_note(self, note_id: str):
         self.conn.execute("DELETE FROM zettel WHERE id=?", (note_id,))
         self.conn.commit()
 
-    def get_note(self, note_id: str) -> Optional[Note]:
+    def get_note(self, note_id: str) -> Note | None:
         c = self.conn.cursor()
         r = c.execute("SELECT * FROM zettel WHERE id=?", (note_id,)).fetchone()
         if not r:
             return None
         # tags
-        tags = [row["name"] for row in c.execute(
-            "SELECT t.name FROM tag t JOIN zettel_tag zt ON t.id=zt.tag_id WHERE zt.zettel_id=?", (note_id,)
-        ).fetchall()]
+        tags = [
+            row["name"]
+            for row in c.execute(
+                "SELECT t.name FROM tag t JOIN zettel_tag zt ON t.id=zt.tag_id WHERE zt.zettel_id=?",
+                (note_id,),
+            ).fetchall()
+        ]
         # links (outgoing)
-        links = [{"to": row["target_id"], "type": row["type"]} for row in c.execute(
-            "SELECT target_id, type FROM link WHERE source_id=?", (note_id,)
-        ).fetchall()]
+        links = [
+            {"to": row["target_id"], "type": row["type"]}
+            for row in c.execute(
+                "SELECT target_id, type FROM link WHERE source_id=?", (note_id,)
+            ).fetchall()
+        ]
         from datetime import datetime
+
         try:
             created = datetime.fromisoformat(r["created_at"])
         except Exception:
@@ -128,11 +148,20 @@ class ZKDB:
             updated = datetime.fromisoformat(r["updated_at"])
         except Exception:
             updated = created
-        return Note(id=r["id"], title=r["title"], body=r["body"], summary=r["summary"] or "", tags=tags, links=links,
-                    created_at=created, updated_at=updated, status="PERMANENT")
+        return Note(
+            id=r["id"],
+            title=r["title"],
+            body=r["body"],
+            summary=r["summary"] or "",
+            tags=tags,
+            links=links,
+            created_at=created,
+            updated_at=updated,
+            status="PERMANENT",
+        )
 
     # ------------------- Search & Analytics -------------------
-    def search(self, query: str, tag: Optional[str] = None) -> list:
+    def search(self, query: str, tag: str | None = None) -> list:
         c = self.conn.cursor()
         if tag:
             sql = """
@@ -164,14 +193,17 @@ class ZKDB:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def central_notes(self, top_n: int=5) -> list:
-        rows = self.conn.execute("""
+    def central_notes(self, top_n: int = 5) -> list:
+        rows = self.conn.execute(
+            """
             SELECT z.id, z.title,
                    (SELECT COUNT(*) FROM link WHERE source_id=z.id OR target_id=z.id) AS degree
             FROM zettel z
             ORDER BY degree DESC
             LIMIT ?
-        """, (top_n,)).fetchall()
+        """,
+            (top_n,),
+        ).fetchall()
         return [dict(r) for r in rows]
 
     def orphaned_notes(self) -> list:

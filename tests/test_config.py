@@ -2,14 +2,21 @@
 Tests for multi-KB configuration system.
 """
 
-import pytest
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
+import pytest
 import yaml
 
 from cascade_research.config import (
-    CascadeConfig, KBConfig, KBType, Settings, Subscription,
-    load_config, save_config, auto_discover_kbs
+    CascadeConfig,
+    KBConfig,
+    KBType,
+    Settings,
+    Subscription,
+    auto_discover_kbs,
+    load_config,
+    save_config,
 )
 
 
@@ -19,10 +26,7 @@ class TestKBConfig:
     def test_create_kb_config(self):
         """Test creating a KB configuration."""
         kb = KBConfig(
-            name="test-kb",
-            path=Path("/tmp/test"),
-            kb_type=KBType.RESEARCH,
-            description="Test KB"
+            name="test-kb", path=Path("/tmp/test"), kb_type=KBType.RESEARCH, description="Test KB"
         )
         assert kb.name == "test-kb"
         assert kb.kb_type == KBType.RESEARCH
@@ -35,39 +39,27 @@ class TestKBConfig:
         kb = KBConfig(
             name="test",
             path=Path("/tmp"),
-            kb_type="events"  # type: ignore
+            kb_type="events",  # type: ignore
         )
         assert kb.kb_type == KBType.EVENTS
 
     def test_path_expansion(self):
         """Test that paths are expanded."""
-        kb = KBConfig(
-            name="test",
-            path=Path("~/test"),
-            kb_type=KBType.RESEARCH
-        )
+        kb = KBConfig(name="test", path=Path("~/test"), kb_type=KBType.RESEARCH)
         assert not str(kb.path).startswith("~")
         assert kb.path.is_absolute()
 
     def test_local_db_path(self):
         """Test local DB path generation."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            kb = KBConfig(
-                name="test",
-                path=Path(tmpdir),
-                kb_type=KBType.RESEARCH
-            )
+            kb = KBConfig(name="test", path=Path(tmpdir), kb_type=KBType.RESEARCH)
             db_path = kb.local_db_path
             assert db_path.name == "index.db"
             assert ".cascade" in str(db_path)
 
     def test_validation_missing_path(self):
         """Test validation catches missing path."""
-        kb = KBConfig(
-            name="test",
-            path=Path("/nonexistent/path"),
-            kb_type=KBType.RESEARCH
-        )
+        kb = KBConfig(name="test", path=Path("/nonexistent/path"), kb_type=KBType.RESEARCH)
         errors = kb.validate()
         assert len(errors) > 0
         assert "does not exist" in errors[0]
@@ -86,11 +78,7 @@ class TestCascadeConfig:
     def test_add_kb(self):
         """Test adding a KB."""
         config = CascadeConfig()
-        kb = KBConfig(
-            name="test",
-            path=Path("/tmp/test"),
-            kb_type=KBType.RESEARCH
-        )
+        kb = KBConfig(name="test", path=Path("/tmp/test"), kb_type=KBType.RESEARCH)
         config.add_kb(kb)
         assert config.get_kb("test") == kb
 
@@ -127,16 +115,14 @@ class TestCascadeConfig:
     def test_to_dict_and_from_dict(self):
         """Test serialization roundtrip."""
         config = CascadeConfig()
-        config.add_kb(KBConfig(
-            name="test",
-            path=Path("/tmp/test"),
-            kb_type=KBType.RESEARCH,
-            description="Test KB"
-        ))
-        config.subscriptions.append(Subscription(
-            url="git@github.com:test/repo.git",
-            local_path=Path("/tmp/sub")
-        ))
+        config.add_kb(
+            KBConfig(
+                name="test", path=Path("/tmp/test"), kb_type=KBType.RESEARCH, description="Test KB"
+            )
+        )
+        config.subscriptions.append(
+            Subscription(url="git@github.com:test/repo.git", local_path=Path("/tmp/sub"))
+        )
 
         data = config.to_dict()
         restored = CascadeConfig.from_dict(data)
@@ -153,20 +139,20 @@ class TestConfigPersistence:
         """Test saving and loading config."""
         with tempfile.TemporaryDirectory() as tmpdir:
             import os
-            os.environ['CASCADE_CONFIG_DIR'] = tmpdir
+
+            os.environ["CASCADE_CONFIG_DIR"] = tmpdir
 
             # Reload the module to pick up new env var
             from cascade_research import config as config_module
+
             config_module.CONFIG_DIR = Path(tmpdir)
             config_module.CONFIG_FILE = Path(tmpdir) / "config.yaml"
 
             # Create and save config
             cfg = CascadeConfig()
-            cfg.add_kb(KBConfig(
-                name="test",
-                path=Path(tmpdir) / "test-kb",
-                kb_type=KBType.RESEARCH
-            ))
+            cfg.add_kb(
+                KBConfig(name="test", path=Path(tmpdir) / "test-kb", kb_type=KBType.RESEARCH)
+            )
             save_config(cfg)
 
             # Verify file exists
@@ -187,16 +173,20 @@ class TestAutoDiscovery:
             kb_dir = Path(tmpdir) / "my-research"
             kb_dir.mkdir()
             kb_yaml = kb_dir / "kb.yaml"
-            kb_yaml.write_text(yaml.safe_dump({
-                'name': 'discovered-kb',
-                'kb_type': 'research',
-                'description': 'Auto-discovered'
-            }))
+            kb_yaml.write_text(
+                yaml.safe_dump(
+                    {
+                        "name": "discovered-kb",
+                        "kb_type": "research",
+                        "description": "Auto-discovered",
+                    }
+                )
+            )
 
             discovered = auto_discover_kbs([Path(tmpdir)])
 
             assert len(discovered) == 1
-            assert discovered[0].name == 'discovered-kb'
+            assert discovered[0].name == "discovered-kb"
             assert discovered[0].kb_type == KBType.RESEARCH
 
 

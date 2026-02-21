@@ -31,18 +31,25 @@ EXIT_ERROR = 99
 
 def get_config():
     from .config import load_config
+
     return load_config()
+
 
 def get_db(config):
     from .storage.database import CascadeDB
+
     return CascadeDB(config.settings.index_path)
+
 
 def get_index_mgr(db, config):
     from .storage.index import IndexManager
+
     return IndexManager(db, config)
+
 
 def get_repo(kb_config):
     from .storage.repository import KBRepository
+
     return KBRepository(kb_config)
 
 
@@ -69,10 +76,14 @@ class FullAccessCLI:
         print(json.dumps(result, indent=2, default=str))
         return exit_code
 
-    def error(self, code: str, message: str,
-              doc_path: str | None = None,
-              hint: str | None = None,
-              exit_code: int = EXIT_ERROR) -> int:
+    def error(
+        self,
+        code: str,
+        message: str,
+        doc_path: str | None = None,
+        hint: str | None = None,
+        exit_code: int = EXIT_ERROR,
+    ) -> int:
         """Output structured error with docs link."""
         err = {"error": {"code": code, "message": message}}
         if doc_path:
@@ -91,50 +102,68 @@ class FullAccessCLI:
         kbs = []
         for kb in self.config.knowledge_bases:
             stats = self.db.get_kb_stats(kb.name)
-            kbs.append({
-                "name": kb.name,
-                "type": kb.kb_type.value,
-                "path": str(kb.path),
-                "entries": stats.get('entry_count', 0) if stats else 0,
-                "indexed": bool(stats.get('last_indexed')) if stats else False,
-                "read_only": kb.read_only
-            })
+            kbs.append(
+                {
+                    "name": kb.name,
+                    "type": kb.kb_type.value,
+                    "path": str(kb.path),
+                    "entries": stats.get("entry_count", 0) if stats else 0,
+                    "indexed": bool(stats.get("last_indexed")) if stats else False,
+                    "read_only": kb.read_only,
+                }
+            )
         return self.output({"kbs": kbs, "total": len(kbs)})
 
     def _sanitize_fts_query(self, query: str) -> str:
         """Sanitize query for FTS5 to avoid syntax errors."""
-        if any(op in query.upper() for op in [' AND ', ' OR ', ' NOT ', '"']):
+        if any(op in query.upper() for op in [" AND ", " OR ", " NOT ", '"']):
             return query
         import re
-        return re.sub(r'(\S*-\S*)', r'"\1"', query)
+
+        return re.sub(r"(\S*-\S*)", r'"\1"', query)
 
     def cmd_search(self, args) -> int:
         """Full-text search."""
         self._ensure_db()
 
         if not args.query:
-            return self.error("MISSING_QUERY", "Search query required",
-                            hint="crk search 'your query'", exit_code=EXIT_USAGE)
+            return self.error(
+                "MISSING_QUERY",
+                "Search query required",
+                hint="crk search 'your query'",
+                exit_code=EXIT_USAGE,
+            )
 
         row = self.db.conn.execute("SELECT COUNT(*) FROM entry").fetchone()
         if row[0] == 0:
-            return self.error("INDEX_EMPTY", "Index empty - build it first",
-                            doc_path="ARCHITECTURE.md#indexing",
-                            hint="crk index build", exit_code=EXIT_INDEX)
+            return self.error(
+                "INDEX_EMPTY",
+                "Index empty - build it first",
+                doc_path="ARCHITECTURE.md#indexing",
+                hint="crk index build",
+                exit_code=EXIT_INDEX,
+            )
 
         try:
             tags = args.tags.split(",") if args.tags else None
             sanitized_query = self._sanitize_fts_query(args.query)
             results = self.db.search(
-                query=sanitized_query, kb_name=args.kb, entry_type=args.type,
-                tags=tags, date_from=args.date_from, date_to=args.date_to,
-                limit=args.limit
+                query=sanitized_query,
+                kb_name=args.kb,
+                entry_type=args.type,
+                tags=tags,
+                date_from=args.date_from,
+                date_to=args.date_to,
+                limit=args.limit,
             )
             return self.output({"query": args.query, "count": len(results), "results": results})
         except Exception as e:
-            return self.error("SEARCH_FAILED", str(e),
-                            hint="Try simpler query or use quotes for phrases",
-                            exit_code=EXIT_ERROR)
+            return self.error(
+                "SEARCH_FAILED",
+                str(e),
+                hint="Try simpler query or use quotes for phrases",
+                exit_code=EXIT_ERROR,
+            )
 
     def cmd_get(self, args) -> int:
         """Get entry by ID."""
@@ -150,12 +179,16 @@ class FullAccessCLI:
                     break
 
         if not result:
-            return self.error("NOT_FOUND", f"Entry '{args.entry_id}' not found",
-                            hint=f"crk search '{args.entry_id}'", exit_code=EXIT_NOT_FOUND)
+            return self.error(
+                "NOT_FOUND",
+                f"Entry '{args.entry_id}' not found",
+                hint=f"crk search '{args.entry_id}'",
+                exit_code=EXIT_NOT_FOUND,
+            )
 
         if args.with_links:
-            result['outlinks'] = self.db.get_outlinks(args.entry_id, result['kb_name'])
-            result['backlinks'] = self.db.get_backlinks(args.entry_id, result['kb_name'])
+            result["outlinks"] = self.db.get_outlinks(args.entry_id, result["kb_name"])
+            result["backlinks"] = self.db.get_backlinks(args.entry_id, result["kb_name"])
 
         return self.output({"entry": result})
 
@@ -164,16 +197,16 @@ class FullAccessCLI:
         self._ensure_db()
 
         results = self.db.get_timeline(
-            date_from=args.date_from, date_to=args.date_to,
-            min_importance=args.min_importance or 1
+            date_from=args.date_from, date_to=args.date_to, min_importance=args.min_importance or 1
         )
 
         if args.actor:
             actor_lower = args.actor.lower()
-            results = [r for r in results
-                      if any(actor_lower in a.lower() for a in (r.get('actors') or []))]
+            results = [
+                r for r in results if any(actor_lower in a.lower() for a in (r.get("actors") or []))
+            ]
 
-        return self.output({"count": len(results[:args.limit]), "events": results[:args.limit]})
+        return self.output({"count": len(results[: args.limit]), "events": results[: args.limit]})
 
     def cmd_tags(self, args) -> int:
         """Get tags with counts."""
@@ -185,23 +218,29 @@ class FullAccessCLI:
         """.format("WHERE et.kb_name = ?" if args.kb else "")
         params = (args.kb, args.limit) if args.kb else (args.limit,)
         rows = self.db.conn.execute(query, params).fetchall()
-        return self.output({"tags": [{"name": r['name'], "count": r['count']} for r in rows]})
+        return self.output({"tags": [{"name": r["name"], "count": r["count"]} for r in rows]})
 
     def cmd_actors(self, args) -> int:
         """Get actors with counts."""
         self._ensure_db()
-        rows = self.db.conn.execute("""
+        rows = self.db.conn.execute(
+            """
             SELECT actor_name, COUNT(*) as mentions FROM entry_actor
             GROUP BY actor_name ORDER BY mentions DESC LIMIT ?
-        """, (args.limit,)).fetchall()
-        return self.output({"actors": [{"name": r['actor_name'], "mentions": r['mentions']} for r in rows]})
+        """,
+            (args.limit,),
+        ).fetchall()
+        return self.output(
+            {"actors": [{"name": r["actor_name"], "mentions": r["mentions"]} for r in rows]}
+        )
 
     def cmd_backlinks(self, args) -> int:
         """Get backlinks to entry."""
         self._ensure_db()
         if not args.kb:
-            return self.error("MISSING_KB", "KB required for backlinks",
-                            hint="--kb <name>", exit_code=EXIT_USAGE)
+            return self.error(
+                "MISSING_KB", "KB required for backlinks", hint="--kb <name>", exit_code=EXIT_USAGE
+            )
         backlinks = self.db.get_backlinks(args.entry_id, args.kb)
         return self.output({"entry": args.entry_id, "backlinks": backlinks})
 
@@ -215,59 +254,74 @@ class FullAccessCLI:
 
         kb_config = self.config.get_kb(args.kb)
         if not kb_config:
-            return self.error("KB_NOT_FOUND", f"KB '{args.kb}' not found",
-                            hint="crk list", exit_code=EXIT_KB_NOT_FOUND)
+            return self.error(
+                "KB_NOT_FOUND",
+                f"KB '{args.kb}' not found",
+                hint="crk list",
+                exit_code=EXIT_KB_NOT_FOUND,
+            )
         if kb_config.read_only:
-            return self.error("READ_ONLY", f"KB '{args.kb}' is read-only",
-                            exit_code=EXIT_PERMISSION)
+            return self.error(
+                "READ_ONLY", f"KB '{args.kb}' is read-only", exit_code=EXIT_PERMISSION
+            )
 
         if args.type == "event" and not args.date:
-            return self.error("MISSING_DATE", "Events require --date",
-                            hint="--date YYYY-MM-DD", exit_code=EXIT_VALIDATION)
+            return self.error(
+                "MISSING_DATE",
+                "Events require --date",
+                hint="--date YYYY-MM-DD",
+                exit_code=EXIT_VALIDATION,
+            )
 
         from .models import EventEntry, ResearchEntry
+
         repo = get_repo(kb_config)
 
         try:
             if args.type == "event":
                 entry = EventEntry.create(
-                    date=args.date, title=args.title,
-                    body=args.body or "", importance=args.importance or 5
+                    date=args.date,
+                    title=args.title,
+                    body=args.body or "",
+                    importance=args.importance or 5,
                 )
-                if args.tags: entry.tags = args.tags.split(",")
-                if args.actors: entry.actors = args.actors.split(",")
+                if args.tags:
+                    entry.tags = args.tags.split(",")
+                if args.actors:
+                    entry.actors = args.actors.split(",")
 
             elif args.type == "actor":
                 entry = ResearchEntry.create_actor(
-                    name=args.title, role=args.role or "",
-                    importance=args.importance or 5
+                    name=args.title, role=args.role or "", importance=args.importance or 5
                 )
                 entry.body = args.body or ""
-                if args.tags: entry.tags = args.tags.split(",")
+                if args.tags:
+                    entry.tags = args.tags.split(",")
 
             elif args.type == "organization":
                 entry = ResearchEntry.create_organization(
-                    name=args.title, description=args.role or "",
-                    importance=args.importance or 5
+                    name=args.title, description=args.role or "", importance=args.importance or 5
                 )
                 entry.body = args.body or ""
-                if args.tags: entry.tags = args.tags.split(",")
+                if args.tags:
+                    entry.tags = args.tags.split(",")
 
             else:
                 entry = ResearchEntry(
                     id=args.title.lower().replace(" ", "-"),
-                    title=args.title, body=args.body or "",
-                    entry_subtype=args.type or "theme"
+                    title=args.title,
+                    body=args.body or "",
+                    entry_subtype=args.type or "theme",
                 )
-                if args.tags: entry.tags = args.tags.split(",")
+                if args.tags:
+                    entry.tags = args.tags.split(",")
 
             file_path = repo.save(entry)
             get_index_mgr(self.db, self.config).index_entry(entry, args.kb, file_path)
 
-            return self.output({
-                "created": True, "id": entry.id,
-                "path": str(file_path), "kb": args.kb
-            })
+            return self.output(
+                {"created": True, "id": entry.id, "path": str(file_path), "kb": args.kb}
+            )
         except Exception as e:
             return self.error("CREATE_FAILED", str(e), exit_code=EXIT_ERROR)
 
@@ -277,24 +331,31 @@ class FullAccessCLI:
 
         kb_config = self.config.get_kb(args.kb)
         if not kb_config:
-            return self.error("KB_NOT_FOUND", f"KB '{args.kb}' not found",
-                            exit_code=EXIT_KB_NOT_FOUND)
+            return self.error(
+                "KB_NOT_FOUND", f"KB '{args.kb}' not found", exit_code=EXIT_KB_NOT_FOUND
+            )
         if kb_config.read_only:
-            return self.error("READ_ONLY", f"KB '{args.kb}' is read-only",
-                            exit_code=EXIT_PERMISSION)
+            return self.error(
+                "READ_ONLY", f"KB '{args.kb}' is read-only", exit_code=EXIT_PERMISSION
+            )
 
         repo = get_repo(kb_config)
         entry = repo.load(args.entry_id)
         if not entry:
-            return self.error("NOT_FOUND", f"Entry '{args.entry_id}' not found",
-                            exit_code=EXIT_NOT_FOUND)
+            return self.error(
+                "NOT_FOUND", f"Entry '{args.entry_id}' not found", exit_code=EXIT_NOT_FOUND
+            )
 
         # Update fields
-        if args.title: entry.title = args.title
-        if args.body: entry.body = args.body
-        if args.importance: entry.importance = args.importance
-        if args.tags: entry.tags = args.tags.split(",")
-        if args.actors and hasattr(entry, 'actors'):
+        if args.title:
+            entry.title = args.title
+        if args.body:
+            entry.body = args.body
+        if args.importance:
+            entry.importance = args.importance
+        if args.tags:
+            entry.tags = args.tags.split(",")
+        if args.actors and hasattr(entry, "actors"):
             entry.actors = args.actors.split(",")
 
         file_path = repo.save(entry)
@@ -308,16 +369,19 @@ class FullAccessCLI:
 
         kb_config = self.config.get_kb(args.kb)
         if not kb_config:
-            return self.error("KB_NOT_FOUND", f"KB '{args.kb}' not found",
-                            exit_code=EXIT_KB_NOT_FOUND)
+            return self.error(
+                "KB_NOT_FOUND", f"KB '{args.kb}' not found", exit_code=EXIT_KB_NOT_FOUND
+            )
         if kb_config.read_only:
-            return self.error("READ_ONLY", f"KB '{args.kb}' is read-only",
-                            exit_code=EXIT_PERMISSION)
+            return self.error(
+                "READ_ONLY", f"KB '{args.kb}' is read-only", exit_code=EXIT_PERMISSION
+            )
 
         repo = get_repo(kb_config)
         if not repo.exists(args.entry_id):
-            return self.error("NOT_FOUND", f"Entry '{args.entry_id}' not found",
-                            exit_code=EXIT_NOT_FOUND)
+            return self.error(
+                "NOT_FOUND", f"Entry '{args.entry_id}' not found", exit_code=EXIT_NOT_FOUND
+            )
 
         repo.delete(args.entry_id)
         get_index_mgr(self.db, self.config).remove_entry(args.entry_id, args.kb)
@@ -339,7 +403,9 @@ class FullAccessCLI:
                 return self.output({"action": "build", "kb": args.kb, "indexed": count})
             else:
                 results = index_mgr.index_all()
-                return self.output({"action": "build", "kbs": results, "total": sum(results.values())})
+                return self.output(
+                    {"action": "build", "kbs": results, "total": sum(results.values())}
+                )
         except Exception as e:
             return self.error("INDEX_FAILED", str(e), exit_code=EXIT_INDEX)
 
@@ -349,12 +415,14 @@ class FullAccessCLI:
         index_mgr = get_index_mgr(self.db, self.config)
 
         results = index_mgr.sync_incremental(args.kb)
-        return self.output({
-            "action": "sync",
-            "added": results['added'],
-            "updated": results['updated'],
-            "removed": results['removed']
-        })
+        return self.output(
+            {
+                "action": "sync",
+                "added": results["added"],
+                "updated": results["updated"],
+                "removed": results["removed"],
+            }
+        )
 
     def cmd_index_stats(self, args) -> int:
         """Index statistics."""
@@ -366,14 +434,18 @@ class FullAccessCLI:
         """Check index health."""
         self._ensure_db()
         health = get_index_mgr(self.db, self.config).check_health()
-        is_healthy = not (health['missing_files'] or health['unindexed_files'] or health['stale_entries'])
-        return self.output({
-            "healthy": is_healthy,
-            "missing": len(health['missing_files']),
-            "unindexed": len(health['unindexed_files']),
-            "stale": len(health['stale_entries']),
-            "details": health if args.verbose else None
-        })
+        is_healthy = not (
+            health["missing_files"] or health["unindexed_files"] or health["stale_entries"]
+        )
+        return self.output(
+            {
+                "healthy": is_healthy,
+                "missing": len(health["missing_files"]),
+                "unindexed": len(health["unindexed_files"]),
+                "stale": len(health["stale_entries"]),
+                "details": health if args.verbose else None,
+            }
+        )
 
 
 def main():
@@ -412,7 +484,7 @@ Examples:
 
 For read-only access (safe for agents): crk-read
 Docs: {DOCS_URL}/ARCHITECTURE.md
-"""
+""",
     )
     parser.add_argument("--version", action="version", version=f"crk {VERSION}")
 

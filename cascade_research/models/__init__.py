@@ -8,4 +8,4 @@ from .base import Entry
 from .event import EventEntry
 from .research import ResearchEntry
 
-__all__ = ['Entry', 'EventEntry', 'ResearchEntry']
+__all__ = ["Entry", "EventEntry", "ResearchEntry"]

@@ -17,6 +17,7 @@ import yaml
 
 try:
     import httpx
+
     HAS_HTTPX = True
 except ImportError:
     HAS_HTTPX = False
@@ -29,8 +30,8 @@ GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_API_URL = "https://api.github.com"
 
 # Default OAuth App for cascade-research (users can configure their own)
-DEFAULT_CLIENT_ID = os.environ.get('CASCADE_GITHUB_CLIENT_ID', '')
-DEFAULT_CLIENT_SECRET = os.environ.get('CASCADE_GITHUB_CLIENT_SECRET', '')
+DEFAULT_CLIENT_ID = os.environ.get("CASCADE_GITHUB_CLIENT_ID", "")
+DEFAULT_CLIENT_SECRET = os.environ.get("CASCADE_GITHUB_CLIENT_SECRET", "")
 
 # Callback server settings
 CALLBACK_HOST = "127.0.0.1"
@@ -64,23 +65,23 @@ def save_github_auth(auth: GitHubAuth) -> None:
 
     # Only save necessary fields (secrets)
     data = {
-        'client_id': auth.client_id,
-        'client_secret': auth.client_secret,
-        'access_token': auth.access_token,
-        'refresh_token': auth.refresh_token,
-        'token_expiry': auth.token_expiry,
-        'scopes': auth.scopes,
+        "client_id": auth.client_id,
+        "client_secret": auth.client_secret,
+        "access_token": auth.access_token,
+        "refresh_token": auth.refresh_token,
+        "token_expiry": auth.token_expiry,
+        "scopes": auth.scopes,
     }
 
     # Add GitHub App fields if present
     if auth.app_id:
-        data['app_id'] = auth.app_id
+        data["app_id"] = auth.app_id
     if auth.private_key_path:
-        data['private_key_path'] = str(auth.private_key_path)
+        data["private_key_path"] = str(auth.private_key_path)
     if auth.installation_id:
-        data['installation_id'] = auth.installation_id
+        data["installation_id"] = auth.installation_id
 
-    with open(auth_file, 'w') as f:
+    with open(auth_file, "w") as f:
         yaml.safe_dump(data, f, default_flow_style=False)
 
     # Secure the file (readable only by owner)
@@ -115,10 +116,10 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
         params = parse_qs(parsed.query)
 
-        if 'error' in params:
-            self.server.oauth_error = params.get('error_description', ['Unknown error'])[0]  # type: ignore
+        if "error" in params:
+            self.server.oauth_error = params.get("error_description", ["Unknown error"])[0]  # type: ignore
             self.send_response(200)
-            self.send_header('Content-Type', 'text/html')
+            self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(b"""
                 <html><body>
@@ -128,22 +129,22 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
             """)
             return
 
-        if 'code' not in params:
+        if "code" not in params:
             self.send_response(400)
             self.end_headers()
             return
 
         # Verify state
-        if params.get('state', [''])[0] != self.server.oauth_state:  # type: ignore
+        if params.get("state", [""])[0] != self.server.oauth_state:  # type: ignore
             self.server.oauth_error = "State mismatch"  # type: ignore
             self.send_response(400)
             self.end_headers()
             return
 
-        self.server.oauth_code = params['code'][0]  # type: ignore
+        self.server.oauth_code = params["code"][0]  # type: ignore
 
         self.send_response(200)
-        self.send_header('Content-Type', 'text/html')
+        self.send_header("Content-Type", "text/html")
         self.end_headers()
         self.wfile.write(b"""
             <html><body>
@@ -155,9 +156,7 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
 
 def start_oauth_flow(
-    client_id: str | None = None,
-    client_secret: str | None = None,
-    scopes: list | None = None
+    client_id: str | None = None, client_secret: str | None = None, scopes: list | None = None
 ) -> tuple[bool, str]:
     """
     Start OAuth flow to authenticate with GitHub.
@@ -182,10 +181,10 @@ def start_oauth_flow(
 
     # Build authorization URL
     auth_params = {
-        'client_id': client_id,
-        'redirect_uri': f"http://{CALLBACK_HOST}:{CALLBACK_PORT}{CALLBACK_PATH}",
-        'scope': ' '.join(scopes),
-        'state': state,
+        "client_id": client_id,
+        "redirect_uri": f"http://{CALLBACK_HOST}:{CALLBACK_PORT}{CALLBACK_PATH}",
+        "scope": " ".join(scopes),
+        "state": state,
     }
     auth_url = f"{GITHUB_AUTHORIZE_URL}?{urlencode(auth_params)}"
 
@@ -220,28 +219,31 @@ def start_oauth_flow(
             response = client.post(
                 GITHUB_TOKEN_URL,
                 data={
-                    'client_id': client_id,
-                    'client_secret': client_secret,
-                    'code': server.oauth_code,  # type: ignore
-                    'redirect_uri': f"http://{CALLBACK_HOST}:{CALLBACK_PORT}{CALLBACK_PATH}",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": server.oauth_code,  # type: ignore
+                    "redirect_uri": f"http://{CALLBACK_HOST}:{CALLBACK_PORT}{CALLBACK_PATH}",
                 },
-                headers={'Accept': 'application/json'}
+                headers={"Accept": "application/json"},
             )
             response.raise_for_status()
             token_data = response.json()
     except Exception as e:
         return False, f"Failed to exchange code for token: {e}"
 
-    if 'error' in token_data:
-        return False, f"Token exchange failed: {token_data.get('error_description', token_data['error'])}"
+    if "error" in token_data:
+        return (
+            False,
+            f"Token exchange failed: {token_data.get('error_description', token_data['error'])}",
+        )
 
     # Save auth
     auth = GitHubAuth(
         client_id=client_id,
         client_secret=client_secret,
-        access_token=token_data.get('access_token'),
-        refresh_token=token_data.get('refresh_token'),
-        scopes=token_data.get('scope', '').split(',') if token_data.get('scope') else scopes,
+        access_token=token_data.get("access_token"),
+        refresh_token=token_data.get("refresh_token"),
+        scopes=token_data.get("scope", "").split(",") if token_data.get("scope") else scopes,
     )
     save_github_auth(auth)
 
@@ -251,9 +253,9 @@ def start_oauth_flow(
             user_response = client.get(
                 f"{GITHUB_API_URL}/user",
                 headers={
-                    'Authorization': f"Bearer {auth.access_token}",
-                    'Accept': 'application/vnd.github+json',
-                }
+                    "Authorization": f"Bearer {auth.access_token}",
+                    "Accept": "application/vnd.github+json",
+                },
             )
             if user_response.status_code == 200:
                 user = user_response.json()
@@ -271,7 +273,10 @@ def check_github_auth() -> tuple[bool, str]:
         return False, "Not authenticated. Run 'cascade-research auth github-login' to authenticate."
 
     if not auth.access_token:
-        return False, "No access token found. Run 'cascade-research auth github-login' to authenticate."
+        return (
+            False,
+            "No access token found. Run 'cascade-research auth github-login' to authenticate.",
+        )
 
     if not HAS_HTTPX:
         return True, "Token present (httpx not installed, cannot verify)"
@@ -281,15 +286,18 @@ def check_github_auth() -> tuple[bool, str]:
             response = client.get(
                 f"{GITHUB_API_URL}/user",
                 headers={
-                    'Authorization': f"Bearer {auth.access_token}",
-                    'Accept': 'application/vnd.github+json',
-                }
+                    "Authorization": f"Bearer {auth.access_token}",
+                    "Accept": "application/vnd.github+json",
+                },
             )
             if response.status_code == 200:
                 user = response.json()
                 return True, f"Authenticated as {user.get('login', 'unknown')}"
             elif response.status_code == 401:
-                return False, "Token expired or invalid. Run 'cascade-research auth github-login' to re-authenticate."
+                return (
+                    False,
+                    "Token expired or invalid. Run 'cascade-research auth github-login' to re-authenticate.",
+                )
             else:
                 return False, f"GitHub API error: {response.status_code}"
     except Exception as e:
@@ -304,11 +312,7 @@ def get_github_token() -> str | None:
     return None
 
 
-def clone_private_repo(
-    repo_url: str,
-    local_path: Path,
-    branch: str = "main"
-) -> tuple[bool, str]:
+def clone_private_repo(repo_url: str, local_path: Path, branch: str = "main") -> tuple[bool, str]:
     """
     Clone a private repository using GitHub OAuth token.
 
@@ -332,11 +336,12 @@ def clone_private_repo(
         repo_url = repo_url.replace("https://", f"https://oauth2:{token}@")
 
     import subprocess
+
     try:
         result = subprocess.run(
             ["git", "clone", "--branch", branch, repo_url, str(local_path)],
             capture_output=True,
-            text=True
+            text=True,
         )
         if result.returncode == 0:
             return True, f"Cloned to {local_path}"
@@ -353,22 +358,19 @@ def pull_repo(local_path: Path) -> tuple[bool, str]:
     token = get_github_token()
 
     import subprocess
+
     env = os.environ.copy()
 
     # Set up credential helper if we have a token
     if token:
         # Use GIT_ASKPASS to provide credentials
-        env['GIT_ASKPASS'] = 'echo'
-        env['GIT_USERNAME'] = 'oauth2'
-        env['GIT_PASSWORD'] = token
+        env["GIT_ASKPASS"] = "echo"
+        env["GIT_USERNAME"] = "oauth2"
+        env["GIT_PASSWORD"] = token
 
     try:
         result = subprocess.run(
-            ["git", "pull"],
-            cwd=local_path,
-            capture_output=True,
-            text=True,
-            env=env
+            ["git", "pull"], cwd=local_path, capture_output=True, text=True, env=env
         )
         if result.returncode == 0:
             return True, result.stdout.strip() or "Already up to date"

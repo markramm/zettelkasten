@@ -13,6 +13,7 @@ try:
     from cascade_research.config import load_config
     from cascade_research.storage.database import CascadeDB
     from cascade_research.storage.index import IndexManager
+
     DIRECT_ACCESS = True
 except ImportError:
     DIRECT_ACCESS = False
@@ -55,13 +56,15 @@ def get_kb_list() -> list[dict[str, Any]]:
     kbs = []
     for kb in config.knowledge_bases:
         stats = db.get_kb_stats(kb.name)
-        kbs.append({
-            "name": kb.name,
-            "type": kb.kb_type.value,
-            "path": str(kb.path),
-            "entries": stats.get('entry_count', 0) if stats else 0,
-            "indexed": bool(stats.get('last_indexed')) if stats else False
-        })
+        kbs.append(
+            {
+                "name": kb.name,
+                "type": kb.kb_type.value,
+                "path": str(kb.path),
+                "entries": stats.get("entry_count", 0) if stats else 0,
+                "indexed": bool(stats.get("last_indexed")) if stats else False,
+            }
+        )
     return kbs
 
 
@@ -82,7 +85,7 @@ def search(
     tags: list[str] | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
-    limit: int = 50
+    limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Full-text search."""
     db = _get_db()
@@ -91,9 +94,10 @@ def search(
 
     # Sanitize query for FTS5 (quote hyphenated terms)
     import re
+
     sanitized = query
-    if not any(op in query.upper() for op in [' AND ', ' OR ', ' NOT ', '"']):
-        sanitized = re.sub(r'(\S*-\S*)', r'"\1"', query)
+    if not any(op in query.upper() for op in [" AND ", " OR ", " NOT ", '"']):
+        sanitized = re.sub(r"(\S*-\S*)", r'"\1"', query)
 
     try:
         return db.search(
@@ -103,7 +107,7 @@ def search(
             tags=tags,
             date_from=date_from,
             date_to=date_to,
-            limit=limit
+            limit=limit,
         )
     except Exception as e:
         st.error(f"Search error: {e}")
@@ -116,22 +120,20 @@ def get_timeline(
     date_to: str | None = None,
     min_importance: int = 1,
     actor: str | None = None,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     """Get timeline events."""
     db = _get_db()
     if not db:
         return []
 
-    results = db.get_timeline(
-        date_from=date_from,
-        date_to=date_to,
-        min_importance=min_importance
-    )
+    results = db.get_timeline(date_from=date_from, date_to=date_to, min_importance=min_importance)
 
     if actor:
         actor_lower = actor.lower()
-        results = [r for r in results if any(actor_lower in a.lower() for a in (r.get('actors') or []))]
+        results = [
+            r for r in results if any(actor_lower in a.lower() for a in (r.get("actors") or []))
+        ]
 
     return results[:limit]
 
@@ -153,7 +155,7 @@ def get_tags(kb_name: str | None = None, limit: int = 100) -> list[dict[str, Any
     params = (kb_name, limit) if kb_name and kb_name != "All KBs" else (limit,)
     rows = db.conn.execute(query, params).fetchall()
 
-    return [{"name": r['name'], "count": r['count']} for r in rows]
+    return [{"name": r["name"], "count": r["count"]} for r in rows]
 
 
 @st.cache_data(ttl=300)
@@ -172,7 +174,7 @@ def get_actors(limit: int = 100) -> list[dict[str, Any]]:
     """
     rows = db.conn.execute(query, (limit,)).fetchall()
 
-    return [{"name": r['actor_name'], "mentions": r['mentions']} for r in rows]
+    return [{"name": r["actor_name"], "mentions": r["mentions"]} for r in rows]
 
 
 @st.cache_data(ttl=60)
@@ -193,8 +195,8 @@ def get_entry(entry_id: str, kb_name: str | None = None) -> dict[str, Any] | Non
                 break
 
     if result:
-        result['outlinks'] = db.get_outlinks(entry_id, result['kb_name'])
-        result['backlinks'] = db.get_backlinks(entry_id, result['kb_name'])
+        result["outlinks"] = db.get_outlinks(entry_id, result["kb_name"])
+        result["backlinks"] = db.get_backlinks(entry_id, result["kb_name"])
 
     return result
 

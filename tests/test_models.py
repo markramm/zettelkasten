@@ -2,13 +2,13 @@
 Tests for entry models.
 """
 
-import pytest
-from pathlib import Path
 import tempfile
-from datetime import datetime
+from pathlib import Path
 
-from cascade_research.models import Entry, EventEntry, ResearchEntry
-from cascade_research.schema import Source, Link, ResearchStatus, EventStatus
+import pytest
+
+from cascade_research.models import EventEntry, ResearchEntry
+from cascade_research.schema import EventStatus, ResearchStatus
 
 
 class TestEventEntry:
@@ -22,7 +22,7 @@ class TestEventEntry:
             body="The administration signed 47 executive orders on day one.",
             importance=9,
             actors=["Stephen Miller", "Donald Trump"],
-            tags=["executive-orders", "day-one"]
+            tags=["executive-orders", "day-one"],
         )
         assert event.date == "2025-01-20"
         assert event.id == "2025-01-20--executive-orders-blitz"
@@ -35,7 +35,7 @@ class TestEventEntry:
             title="ICE Raids Minneapolis",
             date="2025-01-06",
             importance=8,
-            body="Federal agents conducted sweeping raids."
+            body="Federal agents conducted sweeping raids.",
         )
         md = event.to_markdown()
         assert "---" in md
@@ -73,30 +73,19 @@ This is the event body.
         """Test event validation."""
         # Valid event
         event = EventEntry(
-            id="2025-01-20--valid",
-            title="Valid Event",
-            date="2025-01-20",
-            importance=5
+            id="2025-01-20--valid", title="Valid Event", date="2025-01-20", importance=5
         )
         errors = event.validate()
         assert len(errors) == 0
 
         # Missing date
-        bad_event = EventEntry(
-            id="missing-date",
-            title="Bad Event",
-            date="",
-            importance=5
-        )
+        bad_event = EventEntry(id="missing-date", title="Bad Event", date="", importance=5)
         errors = bad_event.validate()
         assert any("date" in e.lower() for e in errors)
 
         # Invalid importance
         bad_event2 = EventEntry(
-            id="2025-01-20--bad",
-            title="Bad Event",
-            date="2025-01-20",
-            importance=15
+            id="2025-01-20--bad", title="Bad Event", date="2025-01-20", importance=15
         )
         errors = bad_event2.validate()
         assert any("importance" in e.lower() for e in errors)
@@ -108,14 +97,14 @@ This is the event body.
             title="Test Event",
             date="2025-01-20",
             location="Washington, DC",
-            actors=["Person A", "Person B"]
+            actors=["Person A", "Person B"],
         )
         ftm = event.to_ftm()
-        assert ftm['schema'] == 'Event'
-        assert ftm['id'] == '2025-01-20--test'
-        assert 'Test Event' in ftm['properties']['name']
-        assert '2025-01-20' in ftm['properties']['date']
-        assert len(ftm['properties']['involved']) == 2
+        assert ftm["schema"] == "Event"
+        assert ftm["id"] == "2025-01-20--test"
+        assert "Test Event" in ftm["properties"]["name"]
+        assert "2025-01-20" in ftm["properties"]["date"]
+        assert len(ftm["properties"]["involved"]) == 2
 
 
 class TestResearchEntry:
@@ -127,7 +116,7 @@ class TestResearchEntry:
             name="Stephen Miller",
             role="architect",
             importance=10,
-            tags=["immigration", "schedule-f"]
+            tags=["immigration", "schedule-f"],
         )
         assert actor.entry_subtype == "actor"
         assert actor.id == "miller-stephen"
@@ -137,9 +126,7 @@ class TestResearchEntry:
     def test_create_organization(self):
         """Test creating an organization entry."""
         org = ResearchEntry.create_organization(
-            name="Heritage Foundation",
-            founded="1973",
-            jurisdiction="US"
+            name="Heritage Foundation", founded="1973", jurisdiction="US"
         )
         assert org.entry_subtype == "organization"
         assert org.id == "heritage-foundation"
@@ -153,7 +140,7 @@ class TestResearchEntry:
             entry_subtype="actor",
             role="architect",
             importance=10,
-            body="## Quick Facts\n- Primary immigration architect"
+            body="## Quick Facts\n- Primary immigration architect",
         )
         md = entry.to_markdown()
         assert "---" in md
@@ -189,16 +176,12 @@ The Heritage Foundation is a conservative think tank...
 
     def test_research_with_sources(self):
         """Test research entry with sources."""
-        entry = ResearchEntry(
-            id="test-entry",
-            title="Test Entry",
-            entry_subtype="actor"
-        )
+        entry = ResearchEntry(id="test-entry", title="Test Entry", entry_subtype="actor")
         entry.add_source(
             title="New York Times Article",
             url="https://nytimes.com/article",
             outlet="New York Times",
-            verified=True
+            verified=True,
         )
         assert len(entry.sources) == 1
         assert entry.sources[0].verified is True
@@ -210,12 +193,12 @@ The Heritage Foundation is a conservative think tank...
             id="miller-stephen",
             title="Stephen Miller",
             entry_subtype="actor",
-            role="Deputy Chief of Staff"
+            role="Deputy Chief of Staff",
         )
         ftm = actor.to_ftm()
-        assert ftm['schema'] == 'Person'
-        assert 'Stephen Miller' in ftm['properties']['name']
-        assert 'Deputy Chief of Staff' in ftm['properties']['position']
+        assert ftm["schema"] == "Person"
+        assert "Stephen Miller" in ftm["properties"]["name"]
+        assert "Deputy Chief of Staff" in ftm["properties"]["position"]
 
         # Organization
         org = ResearchEntry(
@@ -223,17 +206,15 @@ The Heritage Foundation is a conservative think tank...
             title="Heritage Foundation",
             entry_subtype="organization",
             jurisdiction="US",
-            founded="1973"
+            founded="1973",
         )
         ftm = org.to_ftm()
-        assert ftm['schema'] == 'Organization'
-        assert 'US' in ftm['properties']['jurisdiction']
+        assert ftm["schema"] == "Organization"
+        assert "US" in ftm["properties"]["jurisdiction"]
 
         # Theme (no FtM schema)
         theme = ResearchEntry(
-            id="institutional-capture",
-            title="Institutional Capture",
-            entry_subtype="theme"
+            id="institutional-capture", title="Institutional Capture", entry_subtype="theme"
         )
         ftm = theme.to_ftm()
         assert ftm is None
@@ -253,12 +234,9 @@ class TestEntryRoundtrip:
                 body="Test body content.",
                 importance=8,
                 actors=["Actor One"],
-                tags=["test"]
+                tags=["test"],
             )
-            original.add_source(
-                title="Source",
-                url="https://example.com"
-            )
+            original.add_source(title="Source", url="https://example.com")
 
             original.save(path)
             loaded = EventEntry.load(path)
@@ -273,11 +251,7 @@ class TestEntryRoundtrip:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test-actor.md"
 
-            original = ResearchEntry.create_actor(
-                name="John Smith",
-                role="operative",
-                importance=6
-            )
+            original = ResearchEntry.create_actor(name="John Smith", role="operative", importance=6)
             original.body = "## Background\n\nJohn Smith is..."
             original.tags = ["test", "actor"]
             original.research_status = ResearchStatus.DRAFT

@@ -85,4 +85,18 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
-ignore = ["E501"]  # Line too long (handled by formatter)
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+    "B008",  # Function call in argument defaults (standard Typer pattern)
+    "B904",  # raise-without-from in except (typer.Exit doesn't chain)
+    "E741",  # Ambiguous variable name (l for link is clear in context)
+    "N802",  # Function name should be lowercase (do_GET is HTTP convention)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Legacy upstream code - less strict
+"zettelkasten_assistant/*" = ["B007", "C401", "F401"]
+"setup_mcp.py" = ["F401", "UP036"]
+"mcp_server.py" = ["F841"]
+# Test files can have unused assignments for clarity
+"tests/*" = ["F841"]

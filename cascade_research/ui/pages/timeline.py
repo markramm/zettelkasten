@@ -40,7 +40,7 @@ with st.spinner("Loading timeline..."):
         date_to=date_to.isoformat() if date_to else None,
         min_importance=min_importance,
         actor=selected_actor if selected_actor != "All Actors" else None,
-        limit=limit
+        limit=limit,
     )
 
 st.divider()
@@ -52,7 +52,7 @@ else:
     # Group by date
     events_by_date = {}
     for event in events:
-        event_date = event.get('date', 'Unknown')
+        event_date = event.get("date", "Unknown")
         if event_date not in events_by_date:
             events_by_date[event_date] = []
         events_by_date[event_date].append(event)
@@ -76,15 +76,15 @@ else:
                     if st.button(
                         f"**{event['title']}**",
                         key=f"event_{event['id']}",
-                        use_container_width=True
+                        use_container_width=True,
                     ):
-                        st.session_state.selected_entry_id = event['id']
-                        st.session_state.selected_entry_kb = event.get('kb_name', 'timeline')
+                        st.session_state.selected_entry_id = event["id"]
+                        st.session_state.selected_entry_kb = event.get("kb_name", "timeline")
                         st.switch_page("pages/entry.py")
 
                 with col2:
                     # Importance badge
-                    importance = event.get('importance', 5)
+                    importance = event.get("importance", 5)
                     if importance >= 8:
                         st.markdown(f"🔴 **{importance}**")
                     elif importance >= 6:
@@ -93,15 +93,15 @@ else:
                         st.markdown(f"🟢 {importance}")
 
                 # Actors
-                if event.get('actors'):
-                    actors_str = ", ".join(event['actors'][:5])
-                    if len(event['actors']) > 5:
+                if event.get("actors"):
+                    actors_str = ", ".join(event["actors"][:5])
+                    if len(event["actors"]) > 5:
                         actors_str += f" +{len(event['actors']) - 5} more"
                     st.caption(f"👤 {actors_str}")
 
                 # Tags
-                if event.get('tags'):
-                    tags_str = ", ".join(event['tags'][:5])
+                if event.get("tags"):
+                    tags_str = ", ".join(event["tags"][:5])
                     st.caption(f"🏷️ {tags_str}")
 
             st.divider()

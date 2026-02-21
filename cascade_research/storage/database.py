@@ -16,11 +16,12 @@ See: https://github.com/lobehub/lobe-chat (RAG pipeline architecture)
 
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from ..config import KBType
+from .migrations import MigrationManager
 
 
 class CascadeDB:
@@ -41,6 +42,7 @@ class CascadeDB:
         self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._init_schema()
+        self._run_migrations()
 
     def _init_schema(self):
         """Initialize database schema with FTS5."""
@@ -190,6 +192,23 @@ class CascadeDB:
 
         self.conn.commit()
 
+    def _run_migrations(self):
+        """Run any pending database migrations."""
+        mgr = MigrationManager(self.conn)
+        pending = mgr.get_pending_migrations()
+        if pending:
+            mgr.migrate()
+
+    def get_schema_version(self) -> int:
+        """Get current schema version."""
+        mgr = MigrationManager(self.conn)
+        return mgr.get_current_version()
+
+    def get_migration_status(self) -> dict:
+        """Get migration status including pending migrations."""
+        mgr = MigrationManager(self.conn)
+        return mgr.status()
+
     def close(self):
         """Close database connection."""
         self.conn.close()
@@ -210,14 +229,17 @@ class CascadeDB:
 
     def register_kb(self, name: str, kb_type: KBType, path: str, description: str = "") -> None:
         """Register a KB in the index."""
-        self.conn.execute("""
+        self.conn.execute(
+            """
             INSERT INTO kb (name, kb_type, path, description)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(name) DO UPDATE SET
                 kb_type = excluded.kb_type,
                 path = excluded.path,
                 description = excluded.description
-        """, (name, kb_type.value, path, description))
+        """,
+            (name, kb_type.value, path, description),
+        )
         self.conn.commit()
 
     def unregister_kb(self, name: str) -> None:
@@ -227,21 +249,27 @@ class CascadeDB:
 
     def get_kb_stats(self, name: str) -> dict[str, Any] | None:
         """Get statistics for a KB."""
-        row = self.conn.execute("""
+        row = self.conn.execute(
+            """
             SELECT k.*, COUNT(e.id) as actual_count
             FROM kb k
             LEFT JOIN entry e ON k.name = e.kb_name
             WHERE k.name = ?
             GROUP BY k.name
-        """, (name,)).fetchone()
+        """,
+            (name,),
+        ).fetchone()
         return dict(row) if row else None
 
     def update_kb_indexed(self, name: str, entry_count: int) -> None:
         """Update KB last indexed time and count."""
-        self.conn.execute("""
+        self.conn.execute(
+            """
             UPDATE kb SET last_indexed = ?, entry_count = ?
             WHERE name = ?
-        """, (datetime.now(timezone.utc).isoformat(), entry_count, name))
+        """,
+            (datetime.now(UTC).isoformat(), entry_count, name),
+        )
         self.conn.commit()
 
     # =========================================================================
@@ -253,7 +281,8 @@ class CascadeDB:
         c = self.conn.cursor()
 
         # Main entry
-        c.execute("""
+        c.execute(
+            """
             INSERT INTO entry (
                 id, kb_name, entry_type, title, body, summary, file_path,
                 date, importance, status, location,
@@ -275,76 +304,97 @@ class CascadeDB:
                 era = excluded.era,
                 updated_at = excluded.updated_at,
                 indexed_at = CURRENT_TIMESTAMP
-        """, (
-            entry_data.get('id'),
-            entry_data.get('kb_name'),
-            entry_data.get('entry_type'),
-            entry_data.get('title'),
-            entry_data.get('body'),
-            entry_data.get('summary'),
-            entry_data.get('file_path'),
-            entry_data.get('date'),
-            entry_data.get('importance'),
-            entry_data.get('status'),
-            entry_data.get('location'),
-            entry_data.get('research_status'),
-            entry_data.get('role'),
-            entry_data.get('era'),
-            entry_data.get('created_at'),
-            entry_data.get('updated_at'),
-        ))
+        """,
+            (
+                entry_data.get("id"),
+                entry_data.get("kb_name"),
+                entry_data.get("entry_type"),
+                entry_data.get("title"),
+                entry_data.get("body"),
+                entry_data.get("summary"),
+                entry_data.get("file_path"),
+                entry_data.get("date"),
+                entry_data.get("importance"),
+                entry_data.get("status"),
+                entry_data.get("location"),
+                entry_data.get("research_status"),
+                entry_data.get("role"),
+                entry_data.get("era"),
+                entry_data.get("created_at"),
+                entry_data.get("updated_at"),
+            ),
+        )
 
-        entry_id = entry_data.get('id')
-        kb_name = entry_data.get('kb_name')
+        entry_id = entry_data.get("id")
+        kb_name = entry_data.get("kb_name")
 
         # Tags
         c.execute("DELETE FROM entry_tag WHERE entry_id = ? AND kb_name = ?", (entry_id, kb_name))
-        for tag in entry_data.get('tags', []):
+        for tag in entry_data.get("tags", []):
             c.execute("INSERT OR IGNORE INTO tag (name) VALUES (?)", (tag,))
             tag_id = c.execute("SELECT id FROM tag WHERE name = ?", (tag,)).fetchone()[0]
-            c.execute("INSERT INTO entry_tag (entry_id, kb_name, tag_id) VALUES (?, ?, ?)",
-                      (entry_id, kb_name, tag_id))
+            c.execute(
+                "INSERT INTO entry_tag (entry_id, kb_name, tag_id) VALUES (?, ?, ?)",
+                (entry_id, kb_name, tag_id),
+            )
 
         # Actors (for events)
         c.execute("DELETE FROM entry_actor WHERE entry_id = ? AND kb_name = ?", (entry_id, kb_name))
-        for actor in entry_data.get('actors', []):
-            c.execute("INSERT INTO entry_actor (entry_id, kb_name, actor_name) VALUES (?, ?, ?)",
-                      (entry_id, kb_name, actor))
+        for actor in entry_data.get("actors", []):
+            c.execute(
+                "INSERT INTO entry_actor (entry_id, kb_name, actor_name) VALUES (?, ?, ?)",
+                (entry_id, kb_name, actor),
+            )
 
         # Sources
         c.execute("DELETE FROM source WHERE entry_id = ? AND kb_name = ?", (entry_id, kb_name))
-        for src in entry_data.get('sources', []):
-            c.execute("""
+        for src in entry_data.get("sources", []):
+            c.execute(
+                """
                 INSERT INTO source (entry_id, kb_name, title, url, outlet, date, verified)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                entry_id, kb_name,
-                src.get('title', ''),
-                src.get('url', ''),
-                src.get('outlet', ''),
-                src.get('date', ''),
-                1 if src.get('verified') else 0
-            ))
+            """,
+                (
+                    entry_id,
+                    kb_name,
+                    src.get("title", ""),
+                    src.get("url", ""),
+                    src.get("outlet", ""),
+                    src.get("date", ""),
+                    1 if src.get("verified") else 0,
+                ),
+            )
 
         # Links
         c.execute("DELETE FROM link WHERE source_id = ? AND source_kb = ?", (entry_id, kb_name))
-        for link in entry_data.get('links', []):
+        for link in entry_data.get("links", []):
             from ..schema import get_inverse_relation
-            relation = link.get('relation', 'related_to')
+
+            relation = link.get("relation", "related_to")
             inverse = get_inverse_relation(relation)
-            target_kb = link.get('kb', kb_name)  # Default to same KB
-            c.execute("""
+            target_kb = link.get("kb", kb_name)  # Default to same KB
+            c.execute(
+                """
                 INSERT INTO link (source_id, source_kb, target_id, target_kb, relation, inverse_relation, note)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (entry_id, kb_name, link.get('target'), target_kb, relation, inverse, link.get('note', '')))
+            """,
+                (
+                    entry_id,
+                    kb_name,
+                    link.get("target"),
+                    target_kb,
+                    relation,
+                    inverse,
+                    link.get("note", ""),
+                ),
+            )
 
         self.conn.commit()
 
     def delete_entry(self, entry_id: str, kb_name: str) -> bool:
         """Delete an entry. Returns True if deleted."""
         result = self.conn.execute(
-            "DELETE FROM entry WHERE id = ? AND kb_name = ?",
-            (entry_id, kb_name)
+            "DELETE FROM entry WHERE id = ? AND kb_name = ?", (entry_id, kb_name)
         )
         self.conn.commit()
         return result.rowcount > 0
@@ -352,8 +402,7 @@ class CascadeDB:
     def get_entry(self, entry_id: str, kb_name: str) -> dict[str, Any] | None:
         """Get a single entry with all metadata."""
         row = self.conn.execute(
-            "SELECT * FROM entry WHERE id = ? AND kb_name = ?",
-            (entry_id, kb_name)
+            "SELECT * FROM entry WHERE id = ? AND kb_name = ?", (entry_id, kb_name)
         ).fetchone()
 
         if not row:
@@ -362,29 +411,43 @@ class CascadeDB:
         entry = dict(row)
 
         # Get tags
-        entry['tags'] = [r['name'] for r in self.conn.execute("""
+        entry["tags"] = [
+            r["name"]
+            for r in self.conn.execute(
+                """
             SELECT t.name FROM tag t
             JOIN entry_tag et ON t.id = et.tag_id
             WHERE et.entry_id = ? AND et.kb_name = ?
-        """, (entry_id, kb_name)).fetchall()]
+        """,
+                (entry_id, kb_name),
+            ).fetchall()
+        ]
 
         # Get actors
-        entry['actors'] = [r['actor_name'] for r in self.conn.execute(
-            "SELECT actor_name FROM entry_actor WHERE entry_id = ? AND kb_name = ?",
-            (entry_id, kb_name)
-        ).fetchall()]
+        entry["actors"] = [
+            r["actor_name"]
+            for r in self.conn.execute(
+                "SELECT actor_name FROM entry_actor WHERE entry_id = ? AND kb_name = ?",
+                (entry_id, kb_name),
+            ).fetchall()
+        ]
 
         # Get sources
-        entry['sources'] = [dict(r) for r in self.conn.execute(
-            "SELECT * FROM source WHERE entry_id = ? AND kb_name = ?",
-            (entry_id, kb_name)
-        ).fetchall()]
+        entry["sources"] = [
+            dict(r)
+            for r in self.conn.execute(
+                "SELECT * FROM source WHERE entry_id = ? AND kb_name = ?", (entry_id, kb_name)
+            ).fetchall()
+        ]
 
         # Get outgoing links
-        entry['links'] = [dict(r) for r in self.conn.execute(
-            "SELECT target_id, target_kb, relation, note FROM link WHERE source_id = ? AND source_kb = ?",
-            (entry_id, kb_name)
-        ).fetchall()]
+        entry["links"] = [
+            dict(r)
+            for r in self.conn.execute(
+                "SELECT target_id, target_kb, relation, note FROM link WHERE source_id = ? AND source_kb = ?",
+                (entry_id, kb_name),
+            ).fetchall()
+        ]
 
         return entry
 
@@ -401,7 +464,7 @@ class CascadeDB:
         date_from: str | None = None,
         date_to: str | None = None,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """
         Full-text search across entries.
@@ -449,7 +512,7 @@ class CascadeDB:
 
         if tags:
             # Subquery for tag filtering (AND logic - must have all tags)
-            tag_placeholders = ','.join(['?'] * len(tags))
+            tag_placeholders = ",".join(["?"] * len(tags))
             sql += f"""
                 AND e.id IN (
                     SELECT et.entry_id FROM entry_tag et
@@ -469,10 +532,7 @@ class CascadeDB:
         return [dict(r) for r in rows]
 
     def search_by_tag(
-        self,
-        tag: str,
-        kb_name: str | None = None,
-        limit: int = 50
+        self, tag: str, kb_name: str | None = None, limit: int = 50
     ) -> list[dict[str, Any]]:
         """Search entries by tag."""
         sql = """
@@ -494,10 +554,7 @@ class CascadeDB:
         return [dict(r) for r in rows]
 
     def search_by_actor(
-        self,
-        actor_name: str,
-        kb_name: str | None = None,
-        limit: int = 50
+        self, actor_name: str, kb_name: str | None = None, limit: int = 50
     ) -> list[dict[str, Any]]:
         """Search entries mentioning an actor."""
         sql = """
@@ -518,11 +575,7 @@ class CascadeDB:
         return [dict(r) for r in rows]
 
     def search_by_date_range(
-        self,
-        date_from: str,
-        date_to: str,
-        kb_name: str | None = None,
-        limit: int = 100
+        self, date_from: str, date_to: str, kb_name: str | None = None, limit: int = 100
     ) -> list[dict[str, Any]]:
         """Search events within a date range."""
         sql = """
@@ -547,22 +600,28 @@ class CascadeDB:
 
     def get_backlinks(self, entry_id: str, kb_name: str) -> list[dict[str, Any]]:
         """Get entries that link TO this entry."""
-        rows = self.conn.execute("""
+        rows = self.conn.execute(
+            """
             SELECT e.id, e.kb_name, e.title, e.entry_type, l.inverse_relation as relation, l.note
             FROM link l
             JOIN entry e ON l.source_id = e.id AND l.source_kb = e.kb_name
             WHERE l.target_id = ? AND l.target_kb = ?
-        """, (entry_id, kb_name)).fetchall()
+        """,
+            (entry_id, kb_name),
+        ).fetchall()
         return [dict(r) for r in rows]
 
     def get_outlinks(self, entry_id: str, kb_name: str) -> list[dict[str, Any]]:
         """Get entries that this entry links TO."""
-        rows = self.conn.execute("""
+        rows = self.conn.execute(
+            """
             SELECT l.target_id as id, l.target_kb as kb_name, e.title, e.entry_type, l.relation, l.note
             FROM link l
             LEFT JOIN entry e ON l.target_id = e.id AND l.target_kb = e.kb_name
             WHERE l.source_id = ? AND l.source_kb = ?
-        """, (entry_id, kb_name)).fetchall()
+        """,
+            (entry_id, kb_name),
+        ).fetchall()
         return [dict(r) for r in rows]
 
     def get_related(self, entry_id: str, kb_name: str, depth: int = 1) -> list[dict[str, Any]]:
@@ -575,7 +634,7 @@ class CascadeDB:
         seen = set()
 
         for link in backlinks + outlinks:
-            key = (link.get('id'), link.get('kb_name'))
+            key = (link.get("id"), link.get("kb_name"))
             if key not in seen and key != (entry_id, kb_name):
                 seen.add(key)
                 related.append(link)
@@ -589,14 +648,17 @@ class CascadeDB:
     def get_all_tags(self, kb_name: str | None = None) -> list[tuple[str, int]]:
         """Get all tags with counts."""
         if kb_name:
-            rows = self.conn.execute("""
+            rows = self.conn.execute(
+                """
                 SELECT t.name, COUNT(*) as count
                 FROM tag t
                 JOIN entry_tag et ON t.id = et.tag_id
                 WHERE et.kb_name = ?
                 GROUP BY t.name
                 ORDER BY count DESC
-            """, (kb_name,)).fetchall()
+            """,
+                (kb_name,),
+            ).fetchall()
         else:
             rows = self.conn.execute("""
                 SELECT t.name, COUNT(*) as count
@@ -605,7 +667,7 @@ class CascadeDB:
                 GROUP BY t.name
                 ORDER BY count DESC
             """).fetchall()
-        return [(r['name'], r['count']) for r in rows]
+        return [(r["name"], r["count"]) for r in rows]
 
     def get_most_linked(self, kb_name: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """Get entries with most incoming links (most referenced)."""
@@ -648,7 +710,7 @@ class CascadeDB:
         date_from: str | None = None,
         date_to: str | None = None,
         min_importance: int = 1,
-        kb_name: str | None = None
+        kb_name: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get timeline events ordered by date."""
         sql = """

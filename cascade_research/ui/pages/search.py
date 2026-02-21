@@ -19,7 +19,7 @@ with st.form("search_form"):
         query = st.text_input(
             "Search Query",
             value=query,
-            placeholder="Enter search terms (supports FTS5 syntax: AND, OR, NOT, \"phrase\")"
+            placeholder='Enter search terms (supports FTS5 syntax: AND, OR, NOT, "phrase")',
         )
     with col2:
         limit = st.selectbox("Results", [20, 50, 100, 200], index=1)
@@ -30,9 +30,7 @@ with st.form("search_form"):
 
         with col1:
             entry_type = st.selectbox(
-                "Entry Type",
-                ["All", "event", "actor", "organization", "theme", "scene"],
-                index=0
+                "Entry Type", ["All", "event", "actor", "organization", "theme", "scene"], index=0
             )
 
         with col2:
@@ -59,7 +57,7 @@ if query or submitted:
                 tags=selected_tags if selected_tags else None,
                 date_from=date_from.isoformat() if date_from else None,
                 date_to=date_to.isoformat() if date_to else None,
-                limit=limit
+                limit=limit,
             )
 
         st.divider()
@@ -74,7 +72,7 @@ if query or submitted:
                     "Export JSON",
                     data=str(results),
                     file_name="search_results.json",
-                    mime="application/json"
+                    mime="application/json",
                 )
 
         # Display results
@@ -89,28 +87,28 @@ if query or submitted:
                         if st.button(
                             f"**{result['title']}**",
                             key=f"result_{result['id']}",
-                            use_container_width=True
+                            use_container_width=True,
                         ):
-                            st.session_state.selected_entry_id = result['id']
-                            st.session_state.selected_entry_kb = result['kb_name']
+                            st.session_state.selected_entry_id = result["id"]
+                            st.session_state.selected_entry_kb = result["kb_name"]
                             st.switch_page("pages/entry.py")
 
                     with col2:
                         st.caption(f"{result['kb_name']} | {result['entry_type']}")
 
                     # Snippet
-                    if result.get('snippet'):
+                    if result.get("snippet"):
                         # Convert highlight marks to markdown bold
-                        snippet = result['snippet'].replace('<mark>', '**').replace('</mark>', '**')
+                        snippet = result["snippet"].replace("<mark>", "**").replace("</mark>", "**")
                         st.markdown(f"...{snippet}...", unsafe_allow_html=False)
 
                     # Metadata row
                     meta_parts = []
-                    if result.get('date'):
+                    if result.get("date"):
                         meta_parts.append(f"📅 {result['date']}")
-                    if result.get('importance'):
+                    if result.get("importance"):
                         meta_parts.append(f"⭐ {result['importance']}")
-                    if result.get('tags'):
+                    if result.get("tags"):
                         meta_parts.append(f"🏷️ {', '.join(result['tags'][:3])}")
 
                     if meta_parts:
@@ -130,7 +128,7 @@ else:
         tags = get_tags(selected_kb if selected_kb != "All KBs" else None, limit=15)
         for tag in tags:
             if st.button(f"🏷️ {tag['name']} ({tag['count']})", key=f"tag_{tag['name']}"):
-                st.session_state.global_search = tag['name']
+                st.session_state.global_search = tag["name"]
                 st.rerun()
 
     with col2:
@@ -138,5 +136,5 @@ else:
         actors = get_actors(limit=15)
         for actor in actors:
             if st.button(f"👤 {actor['name']} ({actor['mentions']})", key=f"actor_{actor['name']}"):
-                st.session_state.global_search = actor['name']
+                st.session_state.global_search = actor["name"]
                 st.rerun()

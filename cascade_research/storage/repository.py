@@ -5,12 +5,15 @@ Handles reading and writing entries to/from markdown files.
 Each KB is a directory of markdown files with YAML frontmatter.
 """
 
+import logging
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..config import KBConfig, KBType
 from ..models import Entry, EventEntry, ResearchEntry
+
+logger = logging.getLogger(__name__)
 
 
 class KBRepository:
@@ -94,7 +97,7 @@ class KBRepository:
         # Check subdirectories
         if self.kb_type == KBType.RESEARCH:
             for subdir in self.path.iterdir():
-                if subdir.is_dir() and not subdir.name.startswith('.'):
+                if subdir.is_dir() and not subdir.name.startswith("."):
                     file_path = subdir / f"{entry_id}.md"
                     if file_path.exists():
                         return file_path
@@ -113,7 +116,7 @@ class KBRepository:
             entry.file_path = file_path
             return entry
         except Exception as e:
-            print(f"[WARN] Could not load {file_path}: {e}")
+            logger.warning("Could not load %s: %s", file_path, e)
             return None
 
     def save(self, entry: Entry, subdir: str | None = None) -> Path:
@@ -136,7 +139,7 @@ class KBRepository:
         file_path = self._get_file_path(entry.id, subdir)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        entry.updated_at = datetime.now(timezone.utc)
+        entry.updated_at = datetime.now(UTC)
         entry.save(file_path)
         entry.kb_name = self.name
         entry.file_path = file_path
@@ -158,10 +161,10 @@ class KBRepository:
         """Iterate over all markdown files in the KB."""
         for md_file in self.path.rglob("*.md"):
             # Skip hidden directories and files
-            if any(part.startswith('.') for part in md_file.parts):
+            if any(part.startswith(".") for part in md_file.parts):
                 continue
             # Skip templates
-            if 'template' in md_file.name.lower():
+            if "template" in md_file.name.lower():
                 continue
             yield md_file
 
@@ -174,7 +177,7 @@ class KBRepository:
                 entry.file_path = file_path
                 yield entry, file_path
             except Exception as e:
-                print(f"[WARN] Could not parse {file_path}: {e}")
+                logger.warning("Could not parse %s: %s", file_path, e)
                 continue
 
     def count(self) -> int:
@@ -190,7 +193,7 @@ class KBRepository:
         query_lower = query.lower()
         for file_path in self.list_files():
             try:
-                content = file_path.read_text(encoding='utf-8')
+                content = file_path.read_text(encoding="utf-8")
                 if query_lower in content.lower():
                     entry = self.entry_class.load(file_path)
                     entry.kb_name = self.name

@@ -54,7 +54,7 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 ## Current Test Status
 
 ```
-94 tests passing
+139 tests passing
 ├── test_config.py: 4 tests
 ├── test_database.py: 14 tests
 ├── test_models.py: 26 tests
@@ -63,10 +63,55 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 ├── test_cli.py: 7 tests
 ├── test_mcp.py: 3 tests
 ├── test_agent_cli.py: 15 tests
-└── test_rest_api.py: 12 tests
+├── test_rest_api.py: 12 tests
+├── test_migrations.py: 11 tests
+├── test_services.py: 18 tests
+└── test_integration.py: 16 tests
 ```
 
 ## Planned Work
+
+### Technical Debt (Priority)
+
+**Priority 1 — Critical:** ✓ Complete
+- [x] **Schema Versioning & Migrations** — `cascade_research/storage/migrations.py`
+  - Version tracking via `schema_version` table
+  - `MigrationManager` with forward/rollback support
+  - Auto-runs on CascadeDB initialization
+  - 11 new tests in `tests/test_migrations.py`
+- [x] **Service Layer** — `cascade_research/services/`
+  - `KBService`: KB listing, entry CRUD, index sync
+  - `SearchService`: FTS5 query sanitization, search operations
+  - 18 new tests in `tests/test_services.py`
+- [x] **CONTRIBUTING.md** — Development workflow documentation
+  - Setup instructions, code standards, PR process
+
+**Priority 2 — High:** ✓ Complete
+- [x] **Pre-commit Hooks** — `.pre-commit-config.yaml`
+  - Ruff linting and formatting
+  - Trailing whitespace, YAML validation
+  - Pytest quick check on commit
+  - Install: `pre-commit install`
+- [x] **CHANGELOG.md** — Track changes for releases
+- [x] **UPSTREAM_CHANGES.md** — Document differences from joshylchen/zettelkasten fork
+
+**Priority 3 — Medium:** ✓ Complete
+- [x] **Integration Tests** — `tests/test_integration.py` (16 tests)
+  - File → Repository → Index → Database → Search flow
+  - Create, update, delete operations
+  - Tag and actor indexing
+  - Timeline date/importance filtering
+  - Index sync for manual file changes
+  - FTS5 edge cases (hyphens, special chars)
+  - Migration integration
+- [x] **Structured Logging** — `cascade_research/logging.py`
+  - Replaced print() with logging in storage modules
+  - Configurable log levels
+  - Module-specific loggers
+- [ ] **Refactor Large Files** — Deferred (functional, not urgent)
+  - api.py and database.py work well as-is
+
+---
 
 ### Phase 5: Web UI (Current)
 
@@ -144,10 +189,14 @@ cascade_research/
 ├── read_cli.py         # Read-only agent CLI (crk-read)
 ├── write_cli.py        # Full access agent CLI (crk)
 ├── mcp_server.py       # MCP protocol server
+├── services/
+│   ├── kb_service.py   # KB operations (CRUD, index)
+│   └── search_service.py # Search with FTS5 sanitization
 └── storage/
     ├── database.py     # SQLite FTS5 operations
     ├── repository.py   # File-based KB operations
-    └── index.py        # Indexing and sync
+    ├── index.py        # Indexing and sync
+    └── migrations.py   # Schema versioning
 
 .claude/skills/kb/
 └── skill.md            # Claude Code skill documentation
