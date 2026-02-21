@@ -100,6 +100,20 @@ class ReadOnlyCLI:
 
         return self.output({"kbs": kbs, "total": len(kbs)})
 
+    def _sanitize_fts_query(self, query: str) -> str:
+        """Sanitize query for FTS5 to avoid syntax errors.
+
+        FTS5 interprets hyphens as NOT operators. We need to quote
+        terms containing special characters, or wrap the whole query.
+        """
+        # If it looks like the user is using FTS5 operators, don't modify
+        if any(op in query.upper() for op in [' AND ', ' OR ', ' NOT ', '"']):
+            return query
+        # Otherwise, quote terms with hyphens to prevent syntax errors
+        import re
+        # Quote any word containing a hyphen
+        return re.sub(r'(\S*-\S*)', r'"\1"', query)
+
     def cmd_search(self, args) -> int:
         """Full-text search."""
         self._ensure_db()
@@ -120,14 +134,15 @@ class ReadOnlyCLI:
                 "INDEX_EMPTY",
                 "Search index is empty. Build it first.",
                 doc_path="ARCHITECTURE.md#indexing",
-                hint="Run: crk-write index",
+                hint="Run: crk index build",
                 exit_code=EXIT_INDEX_EMPTY
             )
 
         try:
             tags = args.tags.split(",") if args.tags else None
+            sanitized_query = self._sanitize_fts_query(args.query)
             results = self.db.search(
-                query=args.query,
+                query=sanitized_query,
                 kb_name=args.kb,
                 entry_type=args.type,
                 tags=tags,
@@ -142,7 +157,9 @@ class ReadOnlyCLI:
                 "results": results
             })
         except Exception as e:
-            return self.error("SEARCH_FAILED", str(e), exit_code=EXIT_ERROR)
+            return self.error("SEARCH_FAILED", str(e),
+                            hint="Try simpler query or use quotes for phrases",
+                            exit_code=EXIT_ERROR)
 
     def cmd_get(self, args) -> int:
         """Get entry by ID."""
