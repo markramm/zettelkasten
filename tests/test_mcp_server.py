@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("fastapi", reason="fastapi not installed")
+
 from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
 from cascade_research.models import EventEntry, ResearchEntry
 from cascade_research.server.mcp_server import CascadeMCPServer

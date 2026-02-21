@@ -1,44 +1,56 @@
 
 # User Guide
 
-## What is this?
-A Zettelkasten assistant to capture, refine, and connect atomic notes. It stores your notes as Markdown (with YAML frontmatter) and adds AI-assisted workflows (optional).
+## What is cascade-research?
+A multi-KB research infrastructure for citizen journalists and AI agents. It stores entries as Markdown files (with YAML frontmatter) and provides full-text search, timeline queries, and multiple interfaces.
 
 ## Core Concepts
-- **Atomic note**: a single idea per note, with a unique `id`, `title`, and optional `summary`.
-- **Summary**: A concise summary (max 280 characters) that captures the key points of the note.
-- **Links**: typed relationships to other notes (e.g., `supports`, `refines`, `extends`).
-- **CEQRC** workflow: Capture → Explain → Question → Refine → Connect.
+- **Knowledge Base (KB)**: A directory of related entries. Can be of type `events` or `research`.
+- **Event Entry**: A dated event with importance rating, actors, and tags.
+- **Research Entry**: A research document (actor profile, organization, topic, etc.) with sources and tags.
+- **Index**: SQLite FTS5 database for fast full-text search across all KBs.
 
-## Create Your First Note (CLI)
+## CLI Usage
+
+### Main CLI
 ```bash
-python -m zettelkasten_assistant.cli new "Cognitive Load" -c "Mental effort needed to use a tool" -t cognitive-science, design
-python -m zettelkasten_assistant.cli show 20250101010101
+# List all knowledge bases
+cascade-research kbs
+
+# Search across all KBs
+cascade-research search "immigration policy"
+
+# Get timeline of events
+cascade-research timeline --from 2025-01-01 --to 2025-12-31
 ```
 
-## Search (CLI)
+### Agent CLIs (for AI integration)
 ```bash
-python -m zettelkasten_assistant.cli search "cognitive NEAR/3 load"
-python -m zettelkasten_assistant.cli search "effort" --tag cognitive-science
+# Read-only operations (safe for AI agents)
+crk-read list-kbs
+crk-read search "Stephen Miller"
+crk-read get <entry-id>
+crk-read timeline --from 2025-01-01
+
+# Write operations (create/update entries)
+crk create-event --kb my-events --title "New Event" --date 2025-01-15
+crk create-actor --kb my-research --name "Jane Doe" --role "Policy Analyst"
 ```
 
-## Link Notes (CLI)
+## REST API
 ```bash
-python -m zettelkasten_assistant.cli link 20250101010101 20250102020202 supports
+# Start the server
+crk-server
+
+# Or directly:
+python -m cascade_research.server.api
+```
+Then visit `http://localhost:8088/docs` for interactive API docs.
+
+## Streamlit Web UI
+```bash
+crk-ui
 ```
 
-## Web API
-- Start: `python -m zettelkasten_assistant.server.api` → visit `/docs`
-- Create: `POST /notes` with `{title, body, summary?, tags}`
-- Generate Summary: `POST /generate-summary` with `{text}`
-- Search: `GET /search?q=term` (searches title, body, and summary)
-- CEQRC: `POST /notes/{id}/ceqrc`
-
-## Streamlit UI
-```bash
-streamlit run ui_streamlit.py
-```
-Use tabs to create/edit, search, and run CEQRC. The interface includes:
-- **Summary field** with character counter (280 max)
-- **Auto-generate summary** button using AI
-- **Search** includes summaries in full-text search
+## MCP Server (for Claude Code)
+See [MCP_SETUP.md](MCP_SETUP.md) for integration with Claude Code and other MCP-compatible tools.

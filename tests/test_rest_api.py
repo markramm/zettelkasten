@@ -6,6 +6,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
+
+fastapi = pytest.importorskip("fastapi", reason="fastapi not installed")
 from fastapi.testclient import TestClient
 
 from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings

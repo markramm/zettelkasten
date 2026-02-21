@@ -94,9 +94,6 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Legacy upstream code - less strict
-"zettelkasten_assistant/*" = ["B007", "C401", "F401"]
-"setup_mcp.py" = ["F401", "UP036"]
-"mcp_server.py" = ["F841"]
 # Test files can have unused assignments for clarity
-"tests/*" = ["F841"]
+# E402: importorskip must precede the conditional imports
+"tests/*" = ["F841", "E402"]

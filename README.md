@@ -254,21 +254,23 @@ ZK_STREAMLIT_PORT=8501
 pytest
 
 # Run with coverage
-pytest --cov=zettelkasten_assistant
+pytest --cov=cascade_research
 
 # Run specific test file
-pytest tests/test_notes.py
+pytest tests/test_storage.py
 
 # Verbose output
 pytest -v
 ```
 
 Test coverage includes:
-- Note CRUD operations with summaries
-- Full-text search across all fields
-- API endpoint functionality
-- CEQRC workflow execution
-- Link relationship management
+- Entry CRUD operations (events and research)
+- Full-text search with FTS5
+- REST API endpoints (requires `pip install -e ".[dev]"`)
+- MCP server tool invocations
+- Service layer (search, KB management)
+- Database migrations
+- Multi-KB configuration and discovery
 
 ## 🤖 **AI Integration**
 

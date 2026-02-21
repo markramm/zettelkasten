@@ -1,31 +1,29 @@
 
 # MCP Integration Guide
 
-This project exposes **tools** suitable for registration with the Model Context Protocol (MCP).
-A minimal scaffold is provided in `zettelkasten_assistant/server/mcp_server.py`.
+This project exposes **tools** via the Model Context Protocol (MCP) for AI agent integration.
+The MCP server implementation is in `cascade_research/server/mcp_server.py`.
 
-## Options
+## Setup
 
-1. **Use FastAPI endpoints** from an MCP gateway that maps HTTP APIs to MCP tools.
-2. **Use a native MCP Python library** (e.g., `fastmcp` or `modelcontextprotocol`) and register tools directly:
+See [MCP_SETUP.md](MCP_SETUP.md) for detailed setup instructions.
 
-Example (pseudo-code):
-```python
-from fastmcp import MCP
+## Available MCP Tools
 
-mcp = MCP(name="zk-assistant", version="0.1.0")
-@mcp.tool(name="zk_create_note", description="Create a ZK note")
-def zk_create_note(title: str, body: str, tags: list[str] = []):
-    ... # call CEQRC.create_seed(...)
-mcp.run()
-```
+| Tool | Description |
+|------|-------------|
+| `kb_list` | List all mounted knowledge bases |
+| `kb_search` | Full-text search across KBs with filters |
+| `kb_get` | Get entry by ID |
+| `kb_create` | Create new entry (event, actor, etc.) |
+| `kb_update` | Update existing entry |
+| `kb_timeline` | Get timeline events by date range |
+| `kb_tags` | Get all tags with counts |
+| `kb_actors` | Get all actors mentioned in events |
+| `kb_index_sync` | Sync the search index with KB files |
 
-## Recommended Tools
-- `zk_create_note(title, body, tags)`
-- `zk_search(q, tag=None)`
-- `zk_update_note(id, title, body, tags)`
-- `zk_get_note(id)`
-- `zk_create_link(source_id, target_id, type)`
-- `zk_run_ceqrc(id)`
+## Transport
+
+The MCP server uses stdio transport for direct integration with AI tools like Claude Code.
 
 Please refer to the MCP server registry contribution guide for metadata, security, and deployment requirements.

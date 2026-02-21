@@ -16,12 +16,18 @@ See: https://github.com/lobehub/lobe-chat (RAG pipeline architecture)
 
 import sqlite3
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
 from ..config import KBType
 from .migrations import MigrationManager
+
+# Register explicit adapters to avoid Python 3.12+ deprecation warnings
+# (the default date/datetime adapters were deprecated in 3.12)
+sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
+sqlite3.register_adapter(date, lambda d: d.isoformat())
+sqlite3.register_converter("timestamp", lambda b: datetime.fromisoformat(b.decode()))
 
 
 class CascadeDB:
