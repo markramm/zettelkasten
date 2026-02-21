@@ -174,6 +174,72 @@ See: https://github.com/lobehub/lobe-chat for RAG pipeline architecture:
 - files → documents → chunks → embeddings
 - PGlite WASM for local-first (interesting for future web UI)
 
+### Agent-Optimized CLIs (Implemented)
+
+Two CLIs provide permission-separated access for AI agents and human researchers:
+
+#### `crk-read` — Read-only (safe for untrusted agents)
+
+All commands output JSON: `{ok: bool, code: int, data/error: {...}}`
+
+```bash
+crk-read list                           # List all KBs
+crk-read search "query"                 # Full-text search (FTS5)
+crk-read get <entry-id>                 # Get entry by ID
+crk-read timeline --from=2025-01-01     # Timeline events
+crk-read tags                           # All tags with counts
+crk-read actors                         # All actors with counts
+crk-read backlinks <id> --kb=<name>     # Entries linking to this entry
+crk-read stats                          # Index statistics
+```
+
+#### `crk` — Full access (read + write + admin)
+
+```bash
+# Read (same as crk-read)
+crk search "immigration policy" --kb=timeline
+crk get miller-stephen --with-links
+
+# Write
+crk create --kb=timeline --type=event --title="Title" --date=2025-01-20
+crk update <id> --kb=timeline --body="Updated content"
+crk delete <id> --kb=timeline
+
+# Admin
+crk index build                         # Rebuild search index
+crk index sync                          # Incremental sync
+crk index stats                         # Index statistics
+crk index health                        # Check index health
+```
+
+**Exit Codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Usage error |
+| 2 | Entry not found |
+| 3 | KB not found |
+| 4 | Permission denied |
+| 5 | Validation error |
+| 10 | Index error |
+| 99 | Other error |
+
+**Error Format:**
+```json
+{
+  "ok": false,
+  "code": 2,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Entry 'foo' not found",
+    "hint": "crk search 'foo'",
+    "docs": "https://github.com/markramm/zettelkasten/blob/main/docs/ARCHITECTURE.md"
+  }
+}
+```
+
+**Claude Skill:** See `.claude/skills/kb/skill.md` for integration with Claude Code.
+
 ### MCP Integration (Implemented)
 
 The MCP (Model Context Protocol) server is implemented and ready for Claude Code integration.
