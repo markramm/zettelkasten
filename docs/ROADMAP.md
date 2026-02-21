@@ -29,10 +29,32 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 - [x] **Claude Skill** — `.claude/skills/kb/skill.md` for Claude Code discoverability
 - [x] **CLI Tests** — 15 tests covering read/write operations
 
+### Phase 4: REST API (Current)
+
+- [x] **FastAPI Server** — Full REST API at `/` with OpenAPI docs
+  - CORS enabled for web frontends
+  - All endpoints return Pydantic models
+  - Dependency injection for config/db
+- [x] **Endpoints Implemented:**
+  - `GET /kbs` — List knowledge bases
+  - `GET /search` — Full-text search with filters
+  - `GET /entries/{id}` — Get entry by ID
+  - `POST /entries` — Create new entry
+  - `PUT /entries/{id}` — Update entry
+  - `DELETE /entries/{id}` — Delete entry
+  - `GET /timeline` — Timeline events with filters
+  - `GET /tags` — Tags with counts
+  - `GET /actors` — Actors with counts
+  - `GET /stats` — Index statistics
+  - `POST /index/sync` — Trigger index sync
+  - `GET /health` — Health check
+- [x] **REST API Tests** — 12 tests covering all endpoints
+- [x] **Entry Point** — `crk-server` command to run API
+
 ## Current Test Status
 
 ```
-81 tests passing
+94 tests passing
 ├── test_config.py: 4 tests
 ├── test_database.py: 14 tests
 ├── test_models.py: 26 tests
@@ -40,17 +62,11 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 ├── test_index.py: 5 tests
 ├── test_cli.py: 7 tests
 ├── test_mcp.py: 3 tests
-└── test_agent_cli.py: 15 tests
+├── test_agent_cli.py: 15 tests
+└── test_rest_api.py: 12 tests
 ```
 
 ## Planned Work
-
-### Phase 4: REST API
-
-- [ ] FastAPI server with OpenAPI docs
-- [ ] Pagination for large result sets
-- [ ] Rate limiting for public deployments
-- [ ] Webhook support for index sync
 
 ### Phase 5: Web UI
 
@@ -92,6 +108,7 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 | `cascade-research` | `cascade_research.cli:main` | Full CLI (Typer) |
 | `crk` | `cascade_research.write_cli:main` | Agent CLI (full access) |
 | `crk-read` | `cascade_research.read_cli:main` | Agent CLI (read-only) |
+| `crk-server` | `cascade_research.server.api:main` | REST API server |
 
 ## Configuration
 
