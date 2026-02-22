@@ -150,15 +150,20 @@ class ReadOnlyCLI:
 
         try:
             tags = args.tags.split(",") if args.tags else None
-            sanitized_query = self._sanitize_fts_query(args.query)
-            results = self.db.search(
-                query=sanitized_query,
+            mode = getattr(args, "mode", "keyword") or "keyword"
+
+            from .services.search_service import SearchService
+
+            search_svc = SearchService(self.db)
+            results = search_svc.search(
+                query=args.query,
                 kb_name=args.kb,
                 entry_type=args.type,
                 tags=tags,
                 date_from=args.date_from,
                 date_to=args.date_to,
                 limit=args.limit,
+                mode=mode,
             )
 
             return self.output({"query": args.query, "count": len(results), "results": results})
@@ -324,6 +329,12 @@ Docs: https://github.com/markramm/zettelkasten/blob/main/docs/ARCHITECTURE.md
     p.add_argument("--from", dest="date_from", metavar="DATE", help="Start date")
     p.add_argument("--to", dest="date_to", metavar="DATE", help="End date")
     p.add_argument("--limit", type=int, default=20, metavar="N", help="Max results")
+    p.add_argument(
+        "--mode",
+        choices=["keyword", "semantic", "hybrid"],
+        default="keyword",
+        help="Search mode (keyword, semantic, hybrid)",
+    )
 
     # get
     p = subparsers.add_parser("get", help="Get entry by ID")

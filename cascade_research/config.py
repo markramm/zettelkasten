@@ -248,6 +248,9 @@ class Settings:
     index_path: Path = field(default_factory=lambda: Path.home() / ".cascade-research" / "index.db")
     host: str = "127.0.0.1"
     port: int = 8088
+    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_dimensions: int = 384
+    search_mode: str = "keyword"
 
     def __post_init__(self):
         self.index_path = Path(self.index_path).expanduser().resolve()
@@ -416,6 +419,9 @@ class CascadeConfig:
             "index_path": str(self.settings.index_path),
             "host": self.settings.host,
             "port": self.settings.port,
+            "embedding_model": self.settings.embedding_model,
+            "embedding_dimensions": self.settings.embedding_dimensions,
+            "search_mode": self.settings.search_mode,
         }
 
         return result
@@ -487,6 +493,9 @@ class CascadeConfig:
             index_path=Path(settings_data.get("index_path", "~/.cascade-research/index.db")),
             host=settings_data.get("host", "127.0.0.1"),
             port=settings_data.get("port", 8088),
+            embedding_model=settings_data.get("embedding_model", "all-MiniLM-L6-v2"),
+            embedding_dimensions=settings_data.get("embedding_dimensions", 384),
+            search_mode=settings_data.get("search_mode", "keyword"),
         )
 
         return cls(

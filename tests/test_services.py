@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.services import KBService, SearchService
+from cascade_research.services import KBService, SearchMode, SearchService
 from cascade_research.storage.database import CascadeDB
 
 
@@ -94,6 +94,50 @@ class TestSearchService:
         service = SearchService(test_db)
         # This should not raise - it normalizes the kb_name
         results = service.search("test", kb_name="All KBs")
+        assert isinstance(results, list)
+
+    def test_search_mode_enum(self):
+        """SearchMode enum has expected values."""
+        assert SearchMode.KEYWORD.value == "keyword"
+        assert SearchMode.SEMANTIC.value == "semantic"
+        assert SearchMode.HYBRID.value == "hybrid"
+
+    def test_search_mode_from_string(self):
+        """SearchMode can be created from string."""
+        assert SearchMode("keyword") == SearchMode.KEYWORD
+        assert SearchMode("semantic") == SearchMode.SEMANTIC
+        assert SearchMode("hybrid") == SearchMode.HYBRID
+
+    def test_search_with_mode_keyword(self, test_db, test_config):
+        """Search with keyword mode works (default path)."""
+        service = SearchService(test_db)
+        results = service.search("test", mode=SearchMode.KEYWORD)
+        assert isinstance(results, list)
+
+    def test_search_with_mode_string(self, test_db, test_config):
+        """Search accepts mode as string."""
+        service = SearchService(test_db)
+        results = service.search("test", mode="keyword")
+        assert isinstance(results, list)
+
+    def test_search_hybrid_fallback_no_embeddings(self, test_db, test_config):
+        """Hybrid search falls back to keyword when no embeddings exist."""
+        service = SearchService(test_db)
+        # Hybrid should not raise, just fall back to keyword
+        results = service.search("test", mode=SearchMode.HYBRID)
+        assert isinstance(results, list)
+
+    def test_search_semantic_no_deps(self, test_db, test_config):
+        """Semantic search returns empty when embeddings unavailable."""
+        service = SearchService(test_db)
+        # Without embeddings, semantic returns empty
+        results = service.search("test", mode=SearchMode.SEMANTIC)
+        assert isinstance(results, list)
+
+    def test_search_invalid_mode_falls_back(self, test_db, test_config):
+        """Invalid mode string falls back to keyword."""
+        service = SearchService(test_db)
+        results = service.search("test", mode="invalid_mode")
         assert isinstance(results, list)
 
 

@@ -81,6 +81,11 @@ class CascadeMCPServer:
                             "type": "integer",
                             "description": "Maximum results to return (default 20)",
                         },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["keyword", "semantic", "hybrid"],
+                            "description": "Search mode: keyword (FTS5), semantic (vector), or hybrid (both combined). Default: keyword",
+                        },
                     },
                     "required": ["query"],
                 },
@@ -258,7 +263,9 @@ class CascadeMCPServer:
         return {"knowledge_bases": kbs}
 
     def _kb_search(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Full-text search."""
+        """Full-text search with optional semantic/hybrid mode."""
+        from ..services.search_service import SearchService
+
         query = args.get("query", "")
         kb_name = args.get("kb_name")
         entry_type = args.get("entry_type")
@@ -266,8 +273,10 @@ class CascadeMCPServer:
         date_from = args.get("date_from")
         date_to = args.get("date_to")
         limit = args.get("limit", 20)
+        mode = args.get("mode", "keyword")
 
-        results = self.db.search(
+        search_svc = SearchService(self.db)
+        results = search_svc.search(
             query=query,
             kb_name=kb_name,
             entry_type=entry_type,
@@ -275,6 +284,7 @@ class CascadeMCPServer:
             date_from=date_from,
             date_to=date_to,
             limit=limit,
+            mode=mode,
         )
 
         return {"query": query, "count": len(results), "results": results}

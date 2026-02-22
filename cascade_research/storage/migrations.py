@@ -16,7 +16,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Current schema version
-CURRENT_VERSION = 1
+CURRENT_VERSION = 2
 
 
 @dataclass
@@ -42,13 +42,18 @@ MIGRATIONS: list[Migration] = [
         -- Cannot rollback below version 1
         """,
     ),
-    # Future migrations go here:
-    # Migration(
-    #     version=2,
-    #     description="Add embedding column for vector search",
-    #     up="ALTER TABLE entry ADD COLUMN embedding BLOB;",
-    #     down="ALTER TABLE entry DROP COLUMN embedding;"
-    # ),
+    Migration(
+        version=2,
+        description="Add vec_entry virtual table for vector search",
+        up="""
+        -- vec_entry is created conditionally by CascadeDB._run_migrations()
+        -- only when sqlite-vec extension is available.
+        -- This migration just records the version bump.
+        """,
+        down="""
+        DROP TABLE IF EXISTS vec_entry;
+        """,
+    ),
 ]
 
 

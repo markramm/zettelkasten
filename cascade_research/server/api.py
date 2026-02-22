@@ -302,6 +302,7 @@ def search(
     date_from: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     date_to: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     limit: int = Query(20, ge=1, le=100),
+    mode: str = Query("keyword", description="Search mode: keyword, semantic, hybrid"),
     db: CascadeDB = Depends(get_db),
 ):
     """Full-text search across knowledge bases."""
@@ -317,24 +318,21 @@ def search(
             },
         )
 
-    # Sanitize query for FTS5 (quote hyphenated terms)
-    import re
-
-    sanitized_query = q
-    if not any(op in q.upper() for op in [" AND ", " OR ", " NOT ", '"']):
-        sanitized_query = re.sub(r"(\S*-\S*)", r'"\1"', q)
-
     tag_list = tags.split(",") if tags else None
 
     try:
-        results = db.search(
-            query=sanitized_query,
+        from ..services.search_service import SearchService
+
+        search_svc = SearchService(db)
+        results = search_svc.search(
+            query=q,
             kb_name=kb,
             entry_type=type,
             tags=tag_list,
             date_from=date_from,
             date_to=date_to,
             limit=limit,
+            mode=mode,
         )
 
         return SearchResponse(

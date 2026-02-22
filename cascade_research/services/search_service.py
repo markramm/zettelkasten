@@ -1,14 +1,23 @@
 """
 Search Service
 
-Unified search operations with FTS5 query sanitization.
+Unified search operations with FTS5 query sanitization and hybrid search.
 Used by API, CLI, and UI layers.
 """
 
 import re
+from enum import Enum
 from typing import Any
 
 from ..storage.database import CascadeDB
+
+
+class SearchMode(str, Enum):
+    """Search mode for queries."""
+
+    KEYWORD = "keyword"
+    SEMANTIC = "semantic"
+    HYBRID = "hybrid"
 
 
 class SearchService:
@@ -70,9 +79,10 @@ class SearchService:
         limit: int = 50,
         offset: int = 0,
         sanitize: bool = True,
+        mode: str | SearchMode = SearchMode.KEYWORD,
     ) -> list[dict[str, Any]]:
         """
-        Full-text search across entries.
+        Search across entries.
 
         Args:
             query: Search query
@@ -84,16 +94,32 @@ class SearchService:
             limit: Max results
             offset: Pagination offset
             sanitize: Whether to sanitize query for FTS5 (default True)
+            mode: Search mode - keyword, semantic, or hybrid
 
         Returns:
             List of matching entries with snippets and rank
         """
-        if sanitize:
-            query = self.sanitize_fts_query(query)
+        # Normalize mode
+        if isinstance(mode, str):
+            try:
+                mode = SearchMode(mode)
+            except ValueError:
+                mode = SearchMode.KEYWORD
 
         # Normalize "All KBs" to None
         if kb_name == "All KBs":
             kb_name = None
+
+        if mode == SearchMode.SEMANTIC:
+            return self._semantic_search(query, kb_name, limit)
+        elif mode == SearchMode.HYBRID:
+            return self._hybrid_search(
+                query, kb_name, entry_type, tags, date_from, date_to, limit, offset, sanitize
+            )
+
+        # Default: keyword search
+        if sanitize:
+            query = self.sanitize_fts_query(query)
 
         return self.db.search(
             query=query,
@@ -105,6 +131,89 @@ class SearchService:
             limit=limit,
             offset=offset,
         )
+
+    def _semantic_search(
+        self,
+        query: str,
+        kb_name: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Pure semantic vector search."""
+        from .embedding_service import EmbeddingService, is_available
+
+        if not is_available() or not self.db.vec_available:
+            return []
+
+        svc = EmbeddingService(self.db)
+        if not svc.has_embeddings():
+            return []
+
+        return svc.search_similar(query, kb_name=kb_name, limit=limit)
+
+    def _hybrid_search(
+        self,
+        query: str,
+        kb_name: str | None = None,
+        entry_type: str | None = None,
+        tags: list[str] | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        sanitize: bool = True,
+    ) -> list[dict[str, Any]]:
+        """
+        Hybrid search using Reciprocal Rank Fusion (RRF).
+
+        Combines FTS5 keyword results with vector similarity results.
+        Falls back to keyword-only if no embeddings exist.
+        """
+        # Get keyword results
+        kw_query = self.sanitize_fts_query(query) if sanitize else query
+        keyword_results = self.db.search(
+            query=kw_query,
+            kb_name=kb_name,
+            entry_type=entry_type,
+            tags=tags,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit * 2,
+            offset=0,
+        )
+
+        # Try to get semantic results
+        semantic_results = self._semantic_search(query, kb_name, limit=limit * 2)
+
+        if not semantic_results:
+            # No embeddings — fall back to keyword only
+            return keyword_results[offset : offset + limit]
+
+        # Reciprocal Rank Fusion
+        k = 60  # RRF constant
+        scores: dict[tuple[str, str], float] = {}
+        entries: dict[tuple[str, str], dict[str, Any]] = {}
+
+        for rank, result in enumerate(keyword_results):
+            key = (result["id"], result["kb_name"])
+            scores[key] = scores.get(key, 0) + 1.0 / (k + rank)
+            entries[key] = result
+
+        for rank, result in enumerate(semantic_results):
+            key = (result["id"], result["kb_name"])
+            scores[key] = scores.get(key, 0) + 1.0 / (k + rank)
+            if key not in entries:
+                entries[key] = result
+
+        # Sort by RRF score descending
+        sorted_keys = sorted(scores.keys(), key=lambda k: scores[k], reverse=True)
+
+        results = []
+        for key in sorted_keys[offset : offset + limit]:
+            entry = entries[key]
+            entry["rrf_score"] = scores[key]
+            results.append(entry)
+
+        return results
 
     def search_by_tag(
         self, tag: str, kb_name: str | None = None, limit: int = 50

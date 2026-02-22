@@ -134,3 +134,14 @@ class TestMigrationStructure:
         """CURRENT_VERSION matches the latest migration."""
         if MIGRATIONS:
             assert CURRENT_VERSION == MIGRATIONS[-1].version
+
+    def test_migration_v2_exists(self):
+        """Migration v2 for vector search exists."""
+        v2 = [m for m in MIGRATIONS if m.version == 2]
+        assert len(v2) == 1
+        assert "vec" in v2[0].description.lower()
+
+    def test_migration_v2_has_rollback(self):
+        """Migration v2 has rollback SQL."""
+        v2 = [m for m in MIGRATIONS if m.version == 2][0]
+        assert "DROP TABLE" in v2.down

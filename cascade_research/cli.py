@@ -633,6 +633,63 @@ def index_stats():
         console.print(table)
 
 
+@index_app.command("embed")
+def index_embed(
+    kb_name: str | None = typer.Argument(None, help="KB to embed (all if omitted)"),
+    force: bool = typer.Option(False, "--force", "-f", help="Re-embed all entries"),
+):
+    """Generate vector embeddings for semantic search."""
+    from .services.embedding_service import EmbeddingService, is_available
+    from .storage import CascadeDB
+
+    if not is_available():
+        console.print("[red]Error:[/red] sentence-transformers is not installed.")
+        console.print("Install with: pip install cascade-research[semantic]")
+        raise typer.Exit(1)
+
+    config = load_config()
+    db = CascadeDB(config.settings.index_path)
+
+    if not db.vec_available:
+        console.print("[red]Error:[/red] sqlite-vec is not installed or failed to load.")
+        console.print("Install with: pip install cascade-research[semantic]")
+        raise typer.Exit(1)
+
+    # Check index has entries
+    row = db.conn.execute("SELECT COUNT(*) FROM entry").fetchone()
+    if row[0] == 0:
+        console.print("[yellow]Index is empty. Run 'cascade-research index build' first.[/yellow]")
+        raise typer.Exit(1)
+
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+
+    svc = EmbeddingService(db, model_name=config.settings.embedding_model)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Embedding entries...", total=None)
+
+        def update_progress(current: int, total: int):
+            progress.update(task, completed=current, total=total)
+
+        stats = svc.embed_all(
+            kb_name=kb_name,
+            force=force,
+            progress_callback=update_progress,
+        )
+
+    console.print("\n[green]Embedding complete.[/green]")
+    console.print(f"  Embedded: {stats['embedded']}")
+    console.print(f"  Skipped: {stats['skipped']}")
+    if stats["errors"]:
+        console.print(f"  [red]Errors: {stats['errors']}[/red]")
+
+
 @index_app.command("health")
 def index_health():
     """Check index health and consistency."""

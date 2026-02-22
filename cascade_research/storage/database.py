@@ -47,8 +47,22 @@ class CascadeDB:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
+        self._load_extensions()
         self._init_schema()
         self._run_migrations()
+
+    def _load_extensions(self):
+        """Try to load sqlite-vec extension for vector search."""
+        self.vec_available = False
+        try:
+            import sqlite_vec
+
+            self.conn.enable_load_extension(True)
+            sqlite_vec.load(self.conn)
+            self.conn.enable_load_extension(False)
+            self.vec_available = True
+        except (ImportError, Exception):
+            pass
 
     def _init_schema(self):
         """Initialize database schema with FTS5."""
@@ -204,6 +218,14 @@ class CascadeDB:
         pending = mgr.get_pending_migrations()
         if pending:
             mgr.migrate()
+        # Create vec_entry table if sqlite-vec is available and table doesn't exist
+        if self.vec_available:
+            existing = self.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='vec_entry'"
+            ).fetchone()
+            if not existing:
+                self.conn.execute("CREATE VIRTUAL TABLE vec_entry USING vec0(embedding float[384])")
+                self.conn.commit()
 
     def get_schema_version(self) -> int:
         """Get current schema version."""

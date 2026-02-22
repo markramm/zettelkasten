@@ -14,7 +14,7 @@ selected_kb = st.session_state.get("selected_kb", "All KBs")
 
 # Search form
 with st.form("search_form"):
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([3, 1, 1])
     with col1:
         query = st.text_input(
             "Search Query",
@@ -23,6 +23,13 @@ with st.form("search_form"):
         )
     with col2:
         limit = st.selectbox("Results", [20, 50, 100, 200], index=1)
+    with col3:
+        search_mode = st.radio(
+            "Mode",
+            ["keyword", "semantic", "hybrid"],
+            index=0,
+            horizontal=True,
+        )
 
     # Filters in expander
     with st.expander("Advanced Filters", expanded=False):
@@ -58,6 +65,7 @@ if query or submitted:
                 date_from=date_from.isoformat() if date_from else None,
                 date_to=date_to.isoformat() if date_to else None,
                 limit=limit,
+                mode=search_mode,
             )
 
         st.divider()

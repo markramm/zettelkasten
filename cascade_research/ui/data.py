@@ -86,28 +86,26 @@ def search(
     date_from: str | None = None,
     date_to: str | None = None,
     limit: int = 50,
+    mode: str = "keyword",
 ) -> list[dict[str, Any]]:
-    """Full-text search."""
+    """Full-text search with optional semantic/hybrid mode."""
     db = _get_db()
     if not db:
         return []
 
-    # Sanitize query for FTS5 (quote hyphenated terms)
-    import re
-
-    sanitized = query
-    if not any(op in query.upper() for op in [" AND ", " OR ", " NOT ", '"']):
-        sanitized = re.sub(r"(\S*-\S*)", r'"\1"', query)
+    from cascade_research.services.search_service import SearchService
 
     try:
-        return db.search(
-            query=sanitized,
+        search_svc = SearchService(db)
+        return search_svc.search(
+            query=query,
             kb_name=kb_name if kb_name != "All KBs" else None,
             entry_type=entry_type,
             tags=tags,
             date_from=date_from,
             date_to=date_to,
             limit=limit,
+            mode=mode,
         )
     except Exception as e:
         st.error(f"Search error: {e}")
