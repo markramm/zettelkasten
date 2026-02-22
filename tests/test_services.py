@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.services import KBService, QueryExpansionService, SearchMode, SearchService
-from cascade_research.services.query_expansion_service import is_available
-from cascade_research.storage.database import CascadeDB
+from pyrite.config import KBConfig, KBType, PyriteConfig, Settings
+from pyrite.services import KBService, QueryExpansionService, SearchMode, SearchService
+from pyrite.services.query_expansion_service import is_available
+from pyrite.storage.database import PyriteDB
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def test_config(temp_dir):
     timeline_path = temp_dir / "timeline"
     timeline_path.mkdir()
 
-    return CascadeConfig(
+    return PyriteConfig(
         knowledge_bases=[
             KBConfig(
                 name="test-research",
@@ -48,7 +48,7 @@ def test_config(temp_dir):
 @pytest.fixture
 def test_db(test_config):
     """Create test database."""
-    db = CascadeDB(test_config.settings.index_path)
+    db = PyriteDB(test_config.settings.index_path)
     yield db
     db.close()
 
@@ -219,7 +219,7 @@ class TestKBService:
 
     def test_create_entry_read_only_fails(self, test_db, temp_dir):
         """create_entry fails on read-only KB."""
-        config = CascadeConfig(
+        config = PyriteConfig(
             knowledge_bases=[
                 KBConfig(
                     name="readonly-kb",

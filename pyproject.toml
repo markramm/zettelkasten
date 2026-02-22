@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cascade-research"
-version = "0.1.0"
-description = "Multi-KB research infrastructure for citizen journalists and AI agents"
+name = "pyrite"
+version = "0.2.0"
+description = "Knowledge-as-Code for you and your agents"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Information Analysis",
 ]
-keywords = ["knowledge-base", "zettelkasten", "research", "journalism", "ai"]
+keywords = ["knowledge-base", "zettelkasten", "knowledge-management", "mcp", "ai"]
 
 dependencies = [
     "fastapi>=0.111.0",
@@ -56,24 +56,24 @@ dev = [
     "ruff>=0.3.0",
 ]
 all = [
-    "cascade-research[ai,ui,semantic,dev]",
+    "pyrite[ai,ui,semantic,dev]",
 ]
 
 [project.scripts]
-cascade-research = "cascade_research.cli:main"
-crk = "cascade_research.write_cli:main"
-crk-read = "cascade_research.read_cli:main"
-crk-server = "cascade_research.server.api:main"
-crk-ui = "cascade_research.ui.run:main"
+pyrite = "pyrite.write_cli:main"
+pyrite-read = "pyrite.read_cli:main"
+pyrite-admin = "pyrite.admin_cli:main"
+pyrite-server = "pyrite.server.api:main"
+pyrite-ui = "pyrite.ui.run:main"
 
 [project.urls]
-Homepage = "https://github.com/transparency-cascade/cascade-research"
-Documentation = "https://github.com/transparency-cascade/cascade-research#readme"
-Repository = "https://github.com/transparency-cascade/cascade-research"
+Homepage = "https://github.com/markramm/pyrite"
+Documentation = "https://github.com/markramm/pyrite#readme"
+Repository = "https://github.com/markramm/pyrite"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cascade_research*"]
+include = ["pyrite*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

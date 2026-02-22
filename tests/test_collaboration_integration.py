@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.models import ResearchEntry
-from cascade_research.services.git_service import GitService
-from cascade_research.storage.database import CascadeDB
-from cascade_research.storage.index import IndexManager
-from cascade_research.storage.repository import KBRepository
+from pyrite.config import KBConfig, KBType, PyriteConfig, Settings
+from pyrite.models.core_types import PersonEntry
+from pyrite.services.git_service import GitService
+from pyrite.storage.database import PyriteDB
+from pyrite.storage.index import IndexManager
+from pyrite.storage.repository import KBRepository
 
 
 def _git(args, cwd):
@@ -85,7 +85,10 @@ class TestIndexWithAttribution:
 
             # Create a research entry and commit
             repo = KBRepository(kb_config)
-            entry = ResearchEntry.create_actor(name="Alice", role="researcher", importance=5)
+            import re as _re
+
+            entry_id = _re.sub(r"[^a-z0-9]+", "-", "Alice".lower()).strip("-")
+            entry = PersonEntry(id=entry_id, title="Alice", role="researcher", importance=5)
             entry.body = "Alice is a researcher."
             entry.tags = ["test"]
             repo.save(entry)
@@ -95,8 +98,8 @@ class TestIndexWithAttribution:
 
             # Create DB
             db_path = tmpdir / "index.db"
-            db = CascadeDB(db_path)
-            config = CascadeConfig(
+            db = PyriteDB(db_path)
+            config = PyriteConfig(
                 knowledge_bases=[kb_config],
                 settings=Settings(index_path=db_path),
             )
@@ -156,7 +159,7 @@ class TestEndToEndWorkflow:
         """Test: register user -> register repo -> add workspace -> index -> query."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "index.db"
-            db = CascadeDB(db_path)
+            db = PyriteDB(db_path)
 
             # 1. User management
             user = db.upsert_user("alice", 100, "Alice")
@@ -232,7 +235,7 @@ class TestEndToEndWorkflow:
         """Test that everything works without GitHub auth (local user)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "index.db"
-            db = CascadeDB(db_path)
+            db = PyriteDB(db_path)
 
             # Local user should exist
             local = db.get_local_user()

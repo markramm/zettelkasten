@@ -13,15 +13,15 @@ import pytest
 st = pytest.importorskip("sentence_transformers")
 
 
-from cascade_research.config import KBType  # noqa: E402
-from cascade_research.services.embedding_service import (  # noqa: E402
+from pyrite.config import KBType  # noqa: E402
+from pyrite.services.embedding_service import (  # noqa: E402
     EmbeddingService,
     _blob_to_embedding,
     _embedding_to_blob,
     _entry_text,
     is_available,
 )
-from cascade_research.storage.database import CascadeDB  # noqa: E402
+from pyrite.storage.database import PyriteDB  # noqa: E402
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ def temp_dir():
 @pytest.fixture
 def test_db(temp_dir):
     """Create test database with vec support."""
-    db = CascadeDB(temp_dir / "test.db")
+    db = PyriteDB(temp_dir / "test.db")
     assert db.vec_available, "sqlite-vec not loaded"
     yield db
     db.close()

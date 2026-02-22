@@ -7,22 +7,23 @@ from pathlib import Path
 
 import pytest
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.models import EventEntry, ResearchEntry
-from cascade_research.storage.database import CascadeDB
-from cascade_research.storage.index import IndexManager
-from cascade_research.storage.repository import KBRepository
+from pyrite.config import KBConfig, PyriteConfig, Settings
+from pyrite.models import EventEntry
+from pyrite.models.core_types import PersonEntry
+from pyrite.storage.database import PyriteDB
+from pyrite.storage.index import IndexManager
+from pyrite.storage.repository import KBRepository
 
 
-class TestCascadeDB:
-    """Tests for CascadeDB."""
+class TestPyriteDB:
+    """Tests for PyriteDB."""
 
     @pytest.fixture
     def db(self):
         """Create a temporary database."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test.db"
-            db = CascadeDB(db_path)
+            db = PyriteDB(db_path)
             yield db
             db.close()
 
@@ -47,16 +48,16 @@ class TestCascadeDB:
 
     def test_register_kb(self, db):
         """Test KB registration."""
-        db.register_kb("test-kb", KBType.RESEARCH, "/tmp/test", "Test KB")
+        db.register_kb("test-kb", "generic", "/tmp/test", "Test KB")
 
         stats = db.get_kb_stats("test-kb")
         assert stats is not None
         assert stats["name"] == "test-kb"
-        assert stats["kb_type"] == "research"
+        assert stats["kb_type"] == "generic"
 
     def test_upsert_entry(self, db):
         """Test inserting and updating entries."""
-        db.register_kb("test-kb", KBType.EVENTS, "/tmp/test", "")
+        db.register_kb("test-kb", "events", "/tmp/test", "")
 
         entry_data = {
             "id": "2025-01-20--test-event",
@@ -68,7 +69,6 @@ class TestCascadeDB:
             "date": "2025-01-20",
             "importance": 8,
             "tags": ["test", "example"],
-            "actors": ["Person One", "Person Two"],
             "sources": [{"title": "Source", "url": "https://example.com"}],
             "links": [],
         }
@@ -81,11 +81,10 @@ class TestCascadeDB:
         assert retrieved["title"] == "Test Event"
         assert retrieved["importance"] == 8
         assert len(retrieved["tags"]) == 2
-        assert len(retrieved["actors"]) == 2
 
     def test_search_fts(self, db):
         """Test full-text search."""
-        db.register_kb("test-kb", KBType.RESEARCH, "/tmp/test", "")
+        db.register_kb("test-kb", "generic", "/tmp/test", "")
 
         # Insert entries
         db.upsert_entry(
@@ -122,7 +121,7 @@ class TestCascadeDB:
 
     def test_search_by_tag(self, db):
         """Test tag-based search."""
-        db.register_kb("test-kb", KBType.RESEARCH, "/tmp/test", "")
+        db.register_kb("test-kb", "generic", "/tmp/test", "")
 
         db.upsert_entry(
             {
@@ -154,7 +153,7 @@ class TestCascadeDB:
 
     def test_links_and_backlinks(self, db):
         """Test link relationships."""
-        db.register_kb("test-kb", KBType.RESEARCH, "/tmp/test", "")
+        db.register_kb("test-kb", "generic", "/tmp/test", "")
 
         db.upsert_entry(
             {
@@ -189,7 +188,7 @@ class TestCascadeDB:
 
     def test_timeline_query(self, db):
         """Test timeline queries."""
-        db.register_kb("timeline", KBType.EVENTS, "/tmp/test", "")
+        db.register_kb("timeline", "events", "/tmp/test", "")
 
         for i, date in enumerate(["2025-01-10", "2025-01-15", "2025-01-20"]):
             db.upsert_entry(
@@ -223,7 +222,7 @@ class TestKBRepository:
             config = KBConfig(
                 name="test-events",
                 path=kb_path,
-                kb_type=KBType.EVENTS,
+                kb_type="events",
                 description="Test events KB",
             )
             yield KBRepository(config)
@@ -236,7 +235,7 @@ class TestKBRepository:
             config = KBConfig(
                 name="test-research",
                 path=kb_path,
-                kb_type=KBType.RESEARCH,
+                kb_type="generic",
                 description="Test research KB",
             )
             yield KBRepository(config)
@@ -257,12 +256,15 @@ class TestKBRepository:
 
     def test_save_and_load_research(self, research_kb):
         """Test saving and loading a research entry."""
-        entry = ResearchEntry.create_actor(name="John Smith", role="test role", importance=6)
+        import re
+
+        entry_id = re.sub(r"[^a-z0-9]+", "-", "John Smith".lower()).strip("-")
+        entry = PersonEntry(id=entry_id, title="John Smith", role="test role", importance=6)
         entry.body = "Biography of John Smith."
 
         path = research_kb.save(entry)
         assert path.exists()
-        assert "actors" in str(path)  # Should be in actors subdirectory
+        assert "people" in str(path)  # Should be in people subdirectory
 
         loaded = research_kb.load(entry.id)
         assert loaded is not None
@@ -299,14 +301,14 @@ class TestIndexManager:
 
             # Create DB
             db_path = tmpdir / "index.db"
-            db = CascadeDB(db_path)
+            db = PyriteDB(db_path)
 
             # Create KB directory with some entries
             kb_path = tmpdir / "test-kb"
             kb_path.mkdir()
 
             kb_config = KBConfig(
-                name="test-kb", path=kb_path, kb_type=KBType.EVENTS, description="Test KB"
+                name="test-kb", path=kb_path, kb_type="events", description="Test KB"
             )
 
             # Create some entries
@@ -322,7 +324,7 @@ class TestIndexManager:
                 repo.save(event)
 
             # Create config
-            config = CascadeConfig(
+            config = PyriteConfig(
                 knowledge_bases=[kb_config], settings=Settings(index_path=db_path)
             )
 
@@ -391,15 +393,15 @@ class TestIntegrationWithExistingKBs:
         """Test indexing the actual timeline KB."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test.db"
-            db = CascadeDB(db_path)
+            db = PyriteDB(db_path)
 
             timeline_path = cascade_series_path / "timeline" / "hugo-site" / "content" / "events"
             if not timeline_path.exists():
                 pytest.skip("Timeline KB not found")
 
-            kb_config = KBConfig(name="timeline", path=timeline_path, kb_type=KBType.EVENTS)
+            kb_config = KBConfig(name="timeline", path=timeline_path, kb_type="events")
 
-            config = CascadeConfig(
+            config = PyriteConfig(
                 knowledge_bases=[kb_config], settings=Settings(index_path=db_path)
             )
 

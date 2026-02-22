@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from cascade_research.storage.migrations import (
+from pyrite.storage.migrations import (
     CURRENT_VERSION,
     MIGRATIONS,
     MigrationManager,

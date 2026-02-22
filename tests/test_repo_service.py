@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.services.git_service import GitService
-from cascade_research.services.repo_service import RepoService
-from cascade_research.storage.database import CascadeDB
+from pyrite.config import KBConfig, KBType, PyriteConfig, Settings
+from pyrite.services.git_service import GitService
+from pyrite.services.repo_service import RepoService
+from pyrite.storage.database import PyriteDB
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def temp_dir():
 @pytest.fixture
 def db(temp_dir):
     db_path = temp_dir / "index.db"
-    db = CascadeDB(db_path)
+    db = PyriteDB(db_path)
     yield db
     db.close()
 
@@ -30,7 +30,7 @@ def db(temp_dir):
 def config(temp_dir):
     workspace = temp_dir / "workspace"
     workspace.mkdir()
-    return CascadeConfig(
+    return PyriteConfig(
         settings=Settings(
             index_path=temp_dir / "index.db",
             workspace_path=workspace,
@@ -140,7 +140,7 @@ class TestUnsubscribe:
         user = db.get_local_user()
         db.add_workspace_repo(user["id"], repo["id"])
 
-        with patch("cascade_research.services.repo_service.save_config"):
+        with patch("pyrite.services.repo_service.save_config"):
             result = repo_service.unsubscribe("org/kb")
 
         assert result["success"] is True
@@ -151,8 +151,8 @@ class TestUnsubscribe:
 class TestSubscribe:
     """Tests for subscribe (with git operations mocked)."""
 
-    @patch("cascade_research.services.repo_service.get_github_token", return_value=None)
-    @patch("cascade_research.services.repo_service.save_config")
+    @patch("pyrite.services.repo_service.get_github_token", return_value=None)
+    @patch("pyrite.services.repo_service.save_config")
     @patch.object(GitService, "clone")
     @patch.object(GitService, "get_head_commit", return_value="abc123")
     @patch.object(GitService, "is_git_repo", return_value=False)
@@ -200,7 +200,7 @@ class TestSync:
         result = repo_service.sync()
         assert result["success"] is False
 
-    @patch("cascade_research.services.repo_service.get_github_token", return_value=None)
+    @patch("pyrite.services.repo_service.get_github_token", return_value=None)
     @patch.object(GitService, "pull", return_value=(True, "Already up to date"))
     @patch.object(GitService, "get_head_commit", return_value="abc123")
     def test_sync_up_to_date(

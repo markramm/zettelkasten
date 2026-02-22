@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from cascade_research.services.git_service import GitService
+from pyrite.services.git_service import GitService
 
 
 class TestParseGithubUrl:
@@ -68,7 +68,7 @@ class TestSanitizeOutput:
 class TestClone:
     """Tests for clone() with subprocess mocked."""
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_clone_success(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         success, msg = GitService.clone("https://github.com/org/repo", Path("/tmp/test"))
@@ -76,21 +76,21 @@ class TestClone:
         assert "Cloned" in msg
         mock_run.assert_called_once()
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_clone_failure(self, mock_run):
         mock_run.return_value = MagicMock(returncode=1, stderr="fatal: not found")
         success, msg = GitService.clone("https://github.com/org/repo", Path("/tmp/test"))
         assert success is False
         assert "failed" in msg.lower()
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_clone_timeout(self, mock_run):
         mock_run.side_effect = subprocess.TimeoutExpired(cmd="git", timeout=120)
         success, msg = GitService.clone("https://github.com/org/repo", Path("/tmp/test"))
         assert success is False
         assert "timed out" in msg.lower()
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_clone_with_depth(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         GitService.clone("https://github.com/org/repo", Path("/tmp/test"), depth=1)
@@ -98,7 +98,7 @@ class TestClone:
         assert "--depth" in cmd
         assert "1" in cmd
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_clone_full(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         GitService.clone("https://github.com/org/repo", Path("/tmp/test"), depth=None)
@@ -109,13 +109,13 @@ class TestClone:
 class TestPull:
     """Tests for pull() with subprocess mocked."""
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_pull_success(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="Already up to date")
         success, msg = GitService.pull(Path("/tmp/test"))
         assert success is True
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_pull_failure(self, mock_run):
         mock_run.return_value = MagicMock(returncode=1, stderr="merge conflict")
         success, msg = GitService.pull(Path("/tmp/test"))
@@ -125,36 +125,36 @@ class TestPull:
 class TestGetters:
     """Tests for git info getters."""
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_remote_url(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="https://github.com/org/repo.git\n")
         url = GitService.get_remote_url(Path("/tmp/test"))
         assert url == "https://github.com/org/repo.git"
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_remote_url_none(self, mock_run):
         mock_run.return_value = MagicMock(returncode=1)
         url = GitService.get_remote_url(Path("/tmp/test"))
         assert url is None
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_current_branch(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="feature-branch\n")
         branch = GitService.get_current_branch(Path("/tmp/test"))
         assert branch == "feature-branch"
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_head_commit(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="abc123def456\n")
         commit = GitService.get_head_commit(Path("/tmp/test"))
         assert commit == "abc123def456"
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_is_git_repo_true(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         assert GitService.is_git_repo(Path("/tmp/test")) is True
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_is_git_repo_false(self, mock_run):
         mock_run.return_value = MagicMock(returncode=128)
         assert GitService.is_git_repo(Path("/tmp/test")) is False
@@ -163,7 +163,7 @@ class TestGetters:
 class TestGetFileLog:
     """Tests for get_file_log."""
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_file_log(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -178,13 +178,13 @@ class TestGetFileLog:
         assert log[0]["author_name"] == "Alice"
         assert log[1]["message"] == "Update entry"
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_file_log_empty(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="")
         log = GitService.get_file_log(Path("/tmp/test"), "nonexistent.md")
         assert log == []
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_file_log_with_since(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="")
         GitService.get_file_log(Path("/tmp/test"), "test.md", since_commit="abc123")
@@ -195,7 +195,7 @@ class TestGetFileLog:
 class TestGetChangedFiles:
     """Tests for get_changed_files."""
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_changed_files_since_commit(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -205,7 +205,7 @@ class TestGetChangedFiles:
         assert len(files) == 2
         assert "actors/alice.md" in files
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_get_changed_files_all(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -221,7 +221,7 @@ class TestGetChangedFiles:
 class TestAddRemote:
     """Tests for add_remote."""
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_add_remote_success(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         success, msg = GitService.add_remote(
@@ -229,7 +229,7 @@ class TestAddRemote:
         )
         assert success is True
 
-    @patch("cascade_research.services.git_service.subprocess.run")
+    @patch("pyrite.services.git_service.subprocess.run")
     def test_add_remote_already_exists(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=1, stderr="error: remote upstream already exists."

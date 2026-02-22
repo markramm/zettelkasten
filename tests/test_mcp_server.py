@@ -10,14 +10,14 @@ import pytest
 
 pytest.importorskip("fastapi", reason="fastapi not installed")
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.models import EventEntry, ResearchEntry
-from cascade_research.server.mcp_server import CascadeMCPServer
-from cascade_research.storage.repository import KBRepository
+from pyrite.config import KBConfig, KBType, PyriteConfig, Settings
+from pyrite.models import EventEntry, PersonEntry
+from pyrite.server.mcp_server import PyriteMCPServer
+from pyrite.storage.repository import KBRepository
 
 
-class TestCascadeMCPServer:
-    """Tests for CascadeMCPServer."""
+class TestPyriteMCPServer:
+    """Tests for PyriteMCPServer."""
 
     @pytest.fixture
     def server_setup(self):
@@ -51,7 +51,7 @@ class TestCascadeMCPServer:
                 description="Test research KB",
             )
 
-            config = CascadeConfig(
+            config = PyriteConfig(
                 knowledge_bases=[events_kb, research_kb], settings=Settings(index_path=db_path)
             )
 
@@ -69,15 +69,15 @@ class TestCascadeMCPServer:
                 events_repo.save(event)
 
             research_repo = KBRepository(research_kb)
-            actor = ResearchEntry.create_actor(
+            actor = PersonEntry.create(
                 name="Stephen Miller", role="Immigration policy architect", importance=9
             )
             actor.body = "Stephen Miller is the architect of Trump's immigration policy."
             actor.tags = ["trump-admin", "immigration"]
             research_repo.save(actor)
 
-            # Create server with this config
-            server = CascadeMCPServer(config)
+            # Create server with admin tier (tests need create/update/delete/sync)
+            server = PyriteMCPServer(config, tier="admin")
 
             # Index entries
             server.index_mgr.index_all()
@@ -171,14 +171,6 @@ class TestCascadeMCPServer:
         tag_names = [t["tag"] for t in result["tags"]]
         assert "immigration" in tag_names
 
-    def test_kb_actors(self, server_setup):
-        """Test getting all actors."""
-        result = server_setup["server"].call_tool("kb_actors", {})
-
-        assert "actors" in result
-        actor_names = [a["actor"] for a in result["actors"]]
-        assert "Stephen Miller" in actor_names
-
     def test_kb_create_event(self, server_setup):
         """Test creating a new event."""
         result = server_setup["server"].call_tool(
@@ -205,13 +197,13 @@ class TestCascadeMCPServer:
         assert "entry" in get_result
         assert get_result["entry"]["title"] == "New Test Event"
 
-    def test_kb_create_actor(self, server_setup):
-        """Test creating a new actor."""
+    def test_kb_create_person(self, server_setup):
+        """Test creating a new person entry."""
         result = server_setup["server"].call_tool(
             "kb_create",
             {
                 "kb_name": "test-research",
-                "entry_type": "actor",
+                "entry_type": "person",
                 "title": "New Test Actor",
                 "body": "Biography of the test actor.",
                 "role": "Test role",
@@ -281,12 +273,12 @@ class TestMCPProtocol:
             kb_path = tmpdir / "kb"
             kb_path.mkdir()
 
-            config = CascadeConfig(
+            config = PyriteConfig(
                 knowledge_bases=[KBConfig(name="test", path=kb_path, kb_type=KBType.EVENTS)],
                 settings=Settings(index_path=db_path),
             )
 
-            server = CascadeMCPServer(config)
+            server = PyriteMCPServer(config)
             yield server
             server.close()
 
@@ -298,7 +290,7 @@ class TestMCPProtocol:
 
         assert response["id"] == 1
         assert "result" in response
-        assert response["result"]["serverInfo"]["name"] == "cascade-research"
+        assert response["result"]["serverInfo"]["name"].startswith("pyrite")
 
     def test_tools_list(self, server):
         """Test tools/list message."""

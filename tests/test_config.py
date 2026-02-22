@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from cascade_research.config import (
-    CascadeConfig,
+from pyrite.config import (
     KBConfig,
     KBType,
+    PyriteConfig,
     Settings,
     Subscription,
     auto_discover_kbs,
@@ -55,7 +55,7 @@ class TestKBConfig:
             kb = KBConfig(name="test", path=Path(tmpdir), kb_type=KBType.RESEARCH)
             db_path = kb.local_db_path
             assert db_path.name == "index.db"
-            assert ".cascade" in str(db_path)
+            assert ".pyrite" in str(db_path)
 
     def test_validation_missing_path(self):
         """Test validation catches missing path."""
@@ -65,26 +65,26 @@ class TestKBConfig:
         assert "does not exist" in errors[0]
 
 
-class TestCascadeConfig:
-    """Tests for CascadeConfig."""
+class TestPyriteConfig:
+    """Tests for PyriteConfig."""
 
     def test_create_empty_config(self):
         """Test creating empty config."""
-        config = CascadeConfig()
+        config = PyriteConfig()
         assert config.version == "1.0"
         assert len(config.knowledge_bases) == 0
         assert config.settings is not None
 
     def test_add_kb(self):
         """Test adding a KB."""
-        config = CascadeConfig()
+        config = PyriteConfig()
         kb = KBConfig(name="test", path=Path("/tmp/test"), kb_type=KBType.RESEARCH)
         config.add_kb(kb)
         assert config.get_kb("test") == kb
 
     def test_add_duplicate_kb_raises(self):
         """Test adding duplicate KB raises error."""
-        config = CascadeConfig()
+        config = PyriteConfig()
         kb1 = KBConfig(name="test", path=Path("/tmp/1"), kb_type=KBType.RESEARCH)
         kb2 = KBConfig(name="test", path=Path("/tmp/2"), kb_type=KBType.RESEARCH)
         config.add_kb(kb1)
@@ -93,7 +93,7 @@ class TestCascadeConfig:
 
     def test_remove_kb(self):
         """Test removing a KB."""
-        config = CascadeConfig()
+        config = PyriteConfig()
         kb = KBConfig(name="test", path=Path("/tmp/test"), kb_type=KBType.RESEARCH)
         config.add_kb(kb)
         assert config.remove_kb("test") is True
@@ -101,7 +101,7 @@ class TestCascadeConfig:
 
     def test_list_kbs_by_type(self):
         """Test listing KBs by type."""
-        config = CascadeConfig()
+        config = PyriteConfig()
         config.add_kb(KBConfig(name="events1", path=Path("/tmp/1"), kb_type=KBType.EVENTS))
         config.add_kb(KBConfig(name="research1", path=Path("/tmp/2"), kb_type=KBType.RESEARCH))
         config.add_kb(KBConfig(name="research2", path=Path("/tmp/3"), kb_type=KBType.RESEARCH))
@@ -114,7 +114,7 @@ class TestCascadeConfig:
 
     def test_to_dict_and_from_dict(self):
         """Test serialization roundtrip."""
-        config = CascadeConfig()
+        config = PyriteConfig()
         config.add_kb(
             KBConfig(
                 name="test", path=Path("/tmp/test"), kb_type=KBType.RESEARCH, description="Test KB"
@@ -125,7 +125,7 @@ class TestCascadeConfig:
         )
 
         data = config.to_dict()
-        restored = CascadeConfig.from_dict(data)
+        restored = PyriteConfig.from_dict(data)
 
         assert len(restored.knowledge_bases) == 1
         assert restored.get_kb("test").description == "Test KB"
@@ -143,13 +143,13 @@ class TestConfigPersistence:
             os.environ["CASCADE_CONFIG_DIR"] = tmpdir
 
             # Reload the module to pick up new env var
-            from cascade_research import config as config_module
+            from pyrite import config as config_module
 
             config_module.CONFIG_DIR = Path(tmpdir)
             config_module.CONFIG_FILE = Path(tmpdir) / "config.yaml"
 
             # Create and save config
-            cfg = CascadeConfig()
+            cfg = PyriteConfig()
             cfg.add_kb(
                 KBConfig(name="test", path=Path(tmpdir) / "test-kb", kb_type=KBType.RESEARCH)
             )

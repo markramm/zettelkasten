@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from cascade_research.services.user_service import UserService
-from cascade_research.storage.database import CascadeDB
+from pyrite.services.user_service import UserService
+from pyrite.storage.database import PyriteDB
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def db():
     """Create a temporary database."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test.db"
-        db = CascadeDB(db_path)
+        db = PyriteDB(db_path)
         yield db
         db.close()
 

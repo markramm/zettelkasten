@@ -12,13 +12,14 @@ from unittest.mock import patch
 
 import pytest
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.models import EventEntry, ResearchEntry
-from cascade_research.read_cli import EXIT_NOT_FOUND, EXIT_OK, ReadOnlyCLI
-from cascade_research.storage.database import CascadeDB
-from cascade_research.storage.index import IndexManager
-from cascade_research.storage.repository import KBRepository
-from cascade_research.write_cli import FullAccessCLI
+from pyrite.config import KBConfig, KBType, PyriteConfig, Settings
+from pyrite.models import EventEntry
+from pyrite.models.core_types import PersonEntry
+from pyrite.read_cli import EXIT_NOT_FOUND, EXIT_OK, ReadOnlyCLI
+from pyrite.storage.database import PyriteDB
+from pyrite.storage.index import IndexManager
+from pyrite.storage.repository import KBRepository
+from pyrite.write_cli import FullAccessCLI
 
 
 class TestReadOnlyCLI:
@@ -50,7 +51,7 @@ class TestReadOnlyCLI:
                 kb_type=KBType.RESEARCH,
             )
 
-            config = CascadeConfig(
+            config = PyriteConfig(
                 knowledge_bases=[events_kb, research_kb], settings=Settings(index_path=db_path)
             )
 
@@ -64,11 +65,11 @@ class TestReadOnlyCLI:
                     importance=5 + i,
                 )
                 event.tags = ["test", "immigration"]
-                event.actors = ["Stephen Miller", "Tom Homan"]
+                event.participants = ["Stephen Miller", "Tom Homan"]
                 events_repo.save(event)
 
             research_repo = KBRepository(research_kb)
-            actor = ResearchEntry.create_actor(
+            actor = PersonEntry.create(
                 name="Stephen Miller", role="Immigration policy architect", importance=9
             )
             actor.body = "Stephen Miller biography."
@@ -77,7 +78,7 @@ class TestReadOnlyCLI:
 
             cli = ReadOnlyCLI()
             cli.config = config
-            cli.db = CascadeDB(db_path)
+            cli.db = PyriteDB(db_path)
 
             index_mgr = IndexManager(cli.db, config)
             index_mgr.index_all()
@@ -253,22 +254,6 @@ class TestReadOnlyCLI:
         result = json.loads(f.getvalue())
         assert "tags" in result["data"]
 
-    def test_actors(self, setup):
-        """Test getting actors."""
-        import io
-        from contextlib import redirect_stdout
-
-        cli = setup["cli"]
-        args = type("Args", (), {"limit": 100})()
-
-        f = io.StringIO()
-        with redirect_stdout(f):
-            exit_code = cli.cmd_actors(args)
-
-        assert exit_code == EXIT_OK
-        result = json.loads(f.getvalue())
-        assert "actors" in result["data"]
-
     def test_stats(self, setup):
         """Test getting stats."""
         import io
@@ -305,13 +290,13 @@ class TestFullAccessCLI:
                 kb_type=KBType.EVENTS,
             )
 
-            config = CascadeConfig(
+            config = PyriteConfig(
                 knowledge_bases=[events_kb], settings=Settings(index_path=db_path)
             )
 
             cli = FullAccessCLI()
             cli.config = config
-            cli.db = CascadeDB(db_path)
+            cli.db = PyriteDB(db_path)
 
             IndexManager(cli.db, config).index_all()
 
@@ -413,7 +398,7 @@ class TestCLIIntegration:
 
     def test_read_cli_help(self):
         """Test that crk-read --help works."""
-        from cascade_research.read_cli import main
+        from pyrite.read_cli import main
 
         with pytest.raises(SystemExit) as exc_info:
             with patch.object(sys, "argv", ["crk-read", "--help"]):
@@ -422,7 +407,7 @@ class TestCLIIntegration:
 
     def test_write_cli_help(self):
         """Test that crk --help works."""
-        from cascade_research.write_cli import main
+        from pyrite.write_cli import main
 
         with pytest.raises(SystemExit) as exc_info:
             with patch.object(sys, "argv", ["crk", "--help"]):

@@ -2,13 +2,15 @@
 Tests for entry models.
 """
 
+import re
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from cascade_research.models import EventEntry, ResearchEntry
-from cascade_research.schema import EventStatus, ResearchStatus
+from pyrite.models import EventEntry
+from pyrite.models.core_types import OrganizationEntry, PersonEntry
+from pyrite.schema import EventStatus, ResearchStatus
 
 
 class TestEventEntry:
@@ -21,7 +23,7 @@ class TestEventEntry:
             title="Executive Orders Blitz",
             body="The administration signed 47 executive orders on day one.",
             importance=9,
-            actors=["Stephen Miller", "Donald Trump"],
+            participants=["Stephen Miller", "Donald Trump"],
             tags=["executive-orders", "day-one"],
         )
         assert event.date == "2025-01-20"
@@ -51,7 +53,7 @@ date: '2025-01-20'
 importance: 7
 title: Test Event
 status: confirmed
-actors:
+participants:
   - Person One
   - Person Two
 tags:
@@ -66,7 +68,7 @@ This is the event body.
         assert event.date == "2025-01-20"
         assert event.importance == 7
         assert event.status == EventStatus.CONFIRMED
-        assert len(event.actors) == 2
+        assert len(event.participants) == 2
         assert "This is the event body" in event.body
 
     def test_event_validation(self):
@@ -90,66 +92,102 @@ This is the event body.
         errors = bad_event2.validate()
         assert any("importance" in e.lower() for e in errors)
 
-    def test_event_to_ftm(self):
-        """Test FtM export."""
-        event = EventEntry(
-            id="2025-01-20--test",
-            title="Test Event",
-            date="2025-01-20",
-            location="Washington, DC",
-            actors=["Person A", "Person B"],
-        )
-        ftm = event.to_ftm()
-        assert ftm["schema"] == "Event"
-        assert ftm["id"] == "2025-01-20--test"
-        assert "Test Event" in ftm["properties"]["name"]
-        assert "2025-01-20" in ftm["properties"]["date"]
-        assert len(ftm["properties"]["involved"]) == 2
 
+class TestPersonEntry:
+    """Tests for PersonEntry model."""
 
-class TestResearchEntry:
-    """Tests for ResearchEntry model."""
-
-    def test_create_actor(self):
-        """Test creating an actor entry."""
-        actor = ResearchEntry.create_actor(
-            name="Stephen Miller",
+    def test_create_person(self):
+        """Test creating a person entry."""
+        name = "Stephen Miller"
+        entry_id = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+        actor = PersonEntry(
+            id=entry_id,
+            title=name,
             role="architect",
             importance=10,
             tags=["immigration", "schedule-f"],
         )
-        assert actor.entry_subtype == "actor"
-        assert actor.id == "miller-stephen"
+        assert actor.entry_type == "person"
+        assert actor.title == "Stephen Miller"
+        assert actor.role == "architect"
+        assert actor.importance == 10
+
+    def test_person_create_classmethod(self):
+        """Test PersonEntry.create() class method."""
+        actor = PersonEntry.create(
+            name="Stephen Miller",
+            role="architect",
+            importance=10,
+        )
+        assert actor.entry_type == "person"
         assert actor.title == "Stephen Miller"
         assert actor.role == "architect"
 
-    def test_create_organization(self):
-        """Test creating an organization entry."""
-        org = ResearchEntry.create_organization(
-            name="Heritage Foundation", founded="1973", jurisdiction="US"
-        )
-        assert org.entry_subtype == "organization"
-        assert org.id == "heritage-foundation"
-        assert org.founded == "1973"
-
-    def test_research_to_markdown(self):
-        """Test converting research entry to markdown."""
-        entry = ResearchEntry(
+    def test_person_to_markdown(self):
+        """Test converting person entry to markdown."""
+        entry = PersonEntry(
             id="miller-stephen",
             title="Stephen Miller",
-            entry_subtype="actor",
             role="architect",
             importance=10,
             body="## Quick Facts\n- Primary immigration architect",
         )
         md = entry.to_markdown()
         assert "---" in md
-        assert "type: actor" in md
+        assert "type: person" in md
         assert "role: architect" in md
         assert "Quick Facts" in md
 
-    def test_research_from_markdown(self):
-        """Test parsing research entry from markdown."""
+    def test_person_from_markdown(self):
+        """Test parsing person entry from markdown."""
+        md = """---
+id: miller-stephen
+title: Stephen Miller
+type: person
+role: architect
+importance: 10
+tags:
+  - immigration
+---
+
+Key immigration policy architect.
+"""
+        entry = PersonEntry.from_markdown(md)
+        assert entry.title == "Stephen Miller"
+        assert entry.entry_type == "person"
+        assert entry.role == "architect"
+        assert entry.importance == 10
+        assert "immigration policy architect" in entry.body
+
+    def test_person_with_sources(self):
+        """Test person entry with sources."""
+        entry = PersonEntry(id="test-person", title="Test Person")
+        entry.add_source(
+            title="New York Times Article",
+            url="https://nytimes.com/article",
+            outlet="New York Times",
+            verified=True,
+        )
+        assert len(entry.sources) == 1
+        assert entry.sources[0].verified is True
+
+
+class TestOrganizationEntry:
+    """Tests for OrganizationEntry model."""
+
+    def test_create_organization(self):
+        """Test creating an organization entry."""
+        org = OrganizationEntry.create(
+            name="Heritage Foundation",
+            founded="1973",
+            jurisdiction="US",
+        )
+        assert org.entry_type == "organization"
+        assert org.id == "heritage-foundation"
+        assert org.founded == "1973"
+
+    def test_organization_from_markdown(self):
+        """Test parsing organization entry from markdown."""
         md = """---
 title: "Heritage Foundation"
 type: organization
@@ -166,58 +204,13 @@ research_status: complete
 
 The Heritage Foundation is a conservative think tank...
 """
-        entry = ResearchEntry.from_markdown(md)
+        entry = OrganizationEntry.from_markdown(md)
         assert entry.title == "Heritage Foundation"
-        assert entry.entry_subtype == "organization"
+        assert entry.entry_type == "organization"
         assert entry.importance == 9
         assert entry.founded == "1973"
         assert entry.research_status == ResearchStatus.COMPLETE
         assert "conservative think tank" in entry.body
-
-    def test_research_with_sources(self):
-        """Test research entry with sources."""
-        entry = ResearchEntry(id="test-entry", title="Test Entry", entry_subtype="actor")
-        entry.add_source(
-            title="New York Times Article",
-            url="https://nytimes.com/article",
-            outlet="New York Times",
-            verified=True,
-        )
-        assert len(entry.sources) == 1
-        assert entry.sources[0].verified is True
-
-    def test_research_ftm_export(self):
-        """Test FtM export for different subtypes."""
-        # Person
-        actor = ResearchEntry(
-            id="miller-stephen",
-            title="Stephen Miller",
-            entry_subtype="actor",
-            role="Deputy Chief of Staff",
-        )
-        ftm = actor.to_ftm()
-        assert ftm["schema"] == "Person"
-        assert "Stephen Miller" in ftm["properties"]["name"]
-        assert "Deputy Chief of Staff" in ftm["properties"]["position"]
-
-        # Organization
-        org = ResearchEntry(
-            id="heritage-foundation",
-            title="Heritage Foundation",
-            entry_subtype="organization",
-            jurisdiction="US",
-            founded="1973",
-        )
-        ftm = org.to_ftm()
-        assert ftm["schema"] == "Organization"
-        assert "US" in ftm["properties"]["jurisdiction"]
-
-        # Theme (no FtM schema)
-        theme = ResearchEntry(
-            id="institutional-capture", title="Institutional Capture", entry_subtype="theme"
-        )
-        ftm = theme.to_ftm()
-        assert ftm is None
 
 
 class TestEntryRoundtrip:
@@ -233,7 +226,7 @@ class TestEntryRoundtrip:
                 title="Test Event",
                 body="Test body content.",
                 importance=8,
-                actors=["Actor One"],
+                participants=["Actor One"],
                 tags=["test"],
             )
             original.add_source(title="Source", url="https://example.com")
@@ -246,18 +239,18 @@ class TestEntryRoundtrip:
             assert loaded.importance == original.importance
             assert len(loaded.sources) == 1
 
-    def test_research_roundtrip(self):
-        """Test research entry save and load."""
+    def test_person_roundtrip(self):
+        """Test person entry save and load."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "test-actor.md"
+            path = Path(tmpdir) / "test-person.md"
 
-            original = ResearchEntry.create_actor(name="John Smith", role="operative", importance=6)
+            original = PersonEntry.create(name="John Smith", role="operative", importance=6)
             original.body = "## Background\n\nJohn Smith is..."
             original.tags = ["test", "actor"]
             original.research_status = ResearchStatus.DRAFT
 
             original.save(path)
-            loaded = ResearchEntry.load(path)
+            loaded = PersonEntry.load(path)
 
             assert loaded.id == original.id
             assert loaded.role == "operative"
@@ -309,11 +302,11 @@ class TestLoadExistingKBs:
             pytest.skip("No actor files found")
 
         actor_file = actor_files[0]
-        actor = ResearchEntry.load(actor_file)
+        actor = PersonEntry.load(actor_file)
 
         assert actor.id is not None
         assert actor.title is not None
-        assert actor.entry_subtype == "actor" or actor.entry_type in ["actor", "Person"]
+        assert actor.entry_type == "person"
 
 
 if __name__ == "__main__":

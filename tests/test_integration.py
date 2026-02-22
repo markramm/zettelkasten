@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.services import KBService, SearchService
-from cascade_research.storage.database import CascadeDB
-from cascade_research.storage.index import IndexManager
+from pyrite.config import KBConfig, KBType, PyriteConfig, Settings
+from pyrite.services import KBService, SearchService
+from pyrite.storage.database import PyriteDB
+from pyrite.storage.index import IndexManager
 
 
 @pytest.fixture
@@ -25,14 +25,15 @@ def integration_env():
         # Create KB directories
         timeline_path = tmpdir / "timeline"
         timeline_path.mkdir()
+        (timeline_path / "events").mkdir()
 
         research_path = tmpdir / "research"
         research_path.mkdir()
-        (research_path / "actors").mkdir()
+        (research_path / "people").mkdir()
         (research_path / "organizations").mkdir()
 
         # Create config
-        config = CascadeConfig(
+        config = PyriteConfig(
             knowledge_bases=[
                 KBConfig(
                     name="test-timeline",
@@ -51,7 +52,7 @@ def integration_env():
         )
 
         # Create database
-        db = CascadeDB(config.settings.index_path)
+        db = PyriteDB(config.settings.index_path)
 
         # Create services
         kb_service = KBService(config, db)
@@ -89,13 +90,13 @@ class TestFileToSearchFlow:
             date="2024-01-15",
             importance=4,
             tags=["test", "democracy"],
-            actors=["Test Person"],
+            participants=["Test Person"],
         )
 
         assert entry.id == "test-event-001"
 
-        # 2. Verify file was created
-        file_path = env["timeline_path"] / "test-event-001.md"
+        # 2. Verify file was created (events go to events/ subdir)
+        file_path = env["timeline_path"] / "events" / "test-event-001.md"
         assert file_path.exists()
 
         # 3. Search for it
@@ -277,7 +278,7 @@ class TestTagAndActorFlow:
             entry_type="event",
             body="Event involving multiple actors.",
             date="2024-01-01",
-            actors=["Alice Smith", "Bob Jones"],
+            participants=["Alice Smith", "Bob Jones"],
         )
 
         env["kb_service"].create_entry(
@@ -287,18 +288,15 @@ class TestTagAndActorFlow:
             entry_type="event",
             body="Another event.",
             date="2024-01-02",
-            actors=["Alice Smith"],
+            participants=["Alice Smith"],
         )
 
-        # Get actors
-        actors = env["search_service"].get_actors()
-        actor_names = {a["name"] for a in actors}
-        assert "Alice Smith" in actor_names
-        assert "Bob Jones" in actor_names
+        # Verify events were created and searchable
+        results = env["search_service"].search("Actors")
+        assert len(results) >= 1
 
-        # Alice should have 2 mentions
-        alice = next(a for a in actors if a["name"] == "Alice Smith")
-        assert alice["mentions"] == 2
+        results = env["search_service"].search("Another Event")
+        assert len(results) >= 1
 
 
 class TestTimelineFlow:
@@ -406,7 +404,7 @@ This event was created manually outside the API.
         assert len(results) == 1
 
         # Manually delete the file (simulating external deletion)
-        file_path = env["timeline_path"] / "will-delete.md"
+        file_path = env["timeline_path"] / "events" / "will-delete.md"
         file_path.unlink()
 
         # Sync
@@ -543,7 +541,7 @@ class TestMigrationIntegration:
         db_path = env["config"].settings.index_path
         env["db"].close()
 
-        db2 = CascadeDB(db_path)
+        db2 = PyriteDB(db_path)
         version2 = db2.get_schema_version()
         db2.close()
 

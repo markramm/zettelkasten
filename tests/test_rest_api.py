@@ -10,12 +10,12 @@ import pytest
 fastapi = pytest.importorskip("fastapi", reason="fastapi not installed")
 from fastapi.testclient import TestClient
 
-from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.models import EventEntry, ResearchEntry
-from cascade_research.server.api import app
-from cascade_research.storage.database import CascadeDB
-from cascade_research.storage.index import IndexManager
-from cascade_research.storage.repository import KBRepository
+from pyrite.config import KBConfig, KBType, PyriteConfig, Settings
+from pyrite.models import EventEntry, PersonEntry
+from pyrite.server.api import app
+from pyrite.storage.database import PyriteDB
+from pyrite.storage.index import IndexManager
+from pyrite.storage.repository import KBRepository
 
 
 @pytest.fixture
@@ -44,7 +44,7 @@ def test_env():
             kb_type=KBType.RESEARCH,
         )
 
-        config = CascadeConfig(
+        config = PyriteConfig(
             knowledge_bases=[events_kb, research_kb], settings=Settings(index_path=db_path)
         )
 
@@ -62,19 +62,19 @@ def test_env():
             events_repo.save(event)
 
         research_repo = KBRepository(research_kb)
-        actor = ResearchEntry.create_actor(
+        actor = PersonEntry.create(
             name="Stephen Miller", role="Immigration policy architect", importance=9
         )
         actor.body = "Stephen Miller biography."
         actor.tags = ["trump-admin", "immigration"]
         research_repo.save(actor)
 
-        db = CascadeDB(db_path)
+        db = PyriteDB(db_path)
         index_mgr = IndexManager(db, config)
         index_mgr.index_all()
 
         # Inject into app globals
-        import cascade_research.server.api as api_module
+        import pyrite.server.api as api_module
 
         api_module._config = config
         api_module._db = db
@@ -196,14 +196,6 @@ class TestTagsAndActors:
         assert response.status_code == 200
         data = response.json()
         assert "tags" in data
-        assert "count" in data
-
-    def test_get_actors(self, test_env):
-        client = test_env["client"]
-        response = client.get("/actors")
-        assert response.status_code == 200
-        data = response.json()
-        assert "actors" in data
         assert "count" in data
 
 
