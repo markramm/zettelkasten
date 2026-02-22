@@ -55,39 +55,40 @@ def test_db(test_config):
 class TestSearchService:
     """Tests for SearchService."""
 
-    def test_sanitize_simple_query(self):
-        """Simple queries pass through unchanged."""
-        assert SearchService.sanitize_fts_query("hello world") == "hello world"
-
-    def test_sanitize_hyphenated_term(self):
-        """Hyphenated terms are quoted."""
-        result = SearchService.sanitize_fts_query("alex-jones")
-        assert result == '"alex-jones"'
-
-    def test_sanitize_multiple_hyphens(self):
-        """Multiple hyphenated terms are all quoted."""
-        result = SearchService.sanitize_fts_query("alex-jones 2024-01-15")
-        assert result == '"alex-jones" "2024-01-15"'
-
-    def test_sanitize_preserves_fts_operators(self):
-        """FTS5 operators are preserved."""
-        query = 'trump AND "border wall"'
-        assert SearchService.sanitize_fts_query(query) == query
-
-    def test_sanitize_preserves_quoted_phrases(self):
-        """Already quoted phrases are preserved."""
-        query = '"alex-jones"'
-        assert SearchService.sanitize_fts_query(query) == query
-
-    def test_sanitize_handles_or_operator(self):
-        """OR operator is preserved."""
-        query = "trump OR biden"
-        assert SearchService.sanitize_fts_query(query) == query
-
-    def test_sanitize_handles_not_operator(self):
-        """NOT operator is preserved."""
-        query = "trump NOT fake"
-        assert SearchService.sanitize_fts_query(query) == query
+    @pytest.mark.parametrize(
+        "input_query, expected",
+        [
+            ("hello world", "hello world"),
+            ("alex-jones", '"alex-jones"'),
+            ("alex-jones 2024-01-15", '"alex-jones" "2024-01-15"'),
+            ('trump AND "border wall"', 'trump AND "border wall"'),
+            ('"alex-jones"', '"alex-jones"'),
+            ("trump OR biden", "trump OR biden"),
+            ("trump NOT fake", "trump NOT fake"),
+            ("--leading-hyphen", '"--leading-hyphen"'),
+            ("trailing-", '"trailing-"'),
+            ("a-b-c-d", '"a-b-c-d"'),
+            ("café résumé", "café résumé"),
+            ("hello  world", "hello  world"),
+        ],
+        ids=[
+            "simple-passthrough",
+            "hyphenated-quoted",
+            "multiple-hyphens-quoted",
+            "AND-operator-preserved",
+            "quoted-phrase-preserved",
+            "OR-operator-preserved",
+            "NOT-operator-preserved",
+            "leading-double-hyphen",
+            "trailing-hyphen",
+            "multi-hyphen-chain",
+            "unicode-passthrough",
+            "double-space-passthrough",
+        ],
+    )
+    def test_sanitize_fts_query(self, input_query, expected):
+        """FTS5 query sanitization handles special characters and operators."""
+        assert SearchService.sanitize_fts_query(input_query) == expected
 
     def test_search_normalizes_all_kbs(self, test_db, test_config):
         """'All KBs' is normalized to None."""

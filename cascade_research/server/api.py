@@ -17,6 +17,7 @@ Endpoints:
 - POST /index/sync - Trigger index sync
 """
 
+import sqlite3
 from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -338,7 +339,7 @@ def search(
         return SearchResponse(
             query=q, count=len(results), results=[SearchResult(**r) for r in results]
         )
-    except Exception as e:
+    except (sqlite3.OperationalError, ValueError) as e:
         raise HTTPException(status_code=400, detail={"code": "SEARCH_FAILED", "message": str(e)})
 
 

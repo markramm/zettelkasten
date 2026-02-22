@@ -12,6 +12,7 @@ For write operations, use 'crk-write' (requires elevated permissions).
 
 import argparse
 import json
+import sqlite3
 import sys
 from typing import Any
 
@@ -109,21 +110,6 @@ class ReadOnlyCLI:
 
         return self.output({"kbs": kbs, "total": len(kbs)})
 
-    def _sanitize_fts_query(self, query: str) -> str:
-        """Sanitize query for FTS5 to avoid syntax errors.
-
-        FTS5 interprets hyphens as NOT operators. We need to quote
-        terms containing special characters, or wrap the whole query.
-        """
-        # If it looks like the user is using FTS5 operators, don't modify
-        if any(op in query.upper() for op in [" AND ", " OR ", " NOT ", '"']):
-            return query
-        # Otherwise, quote terms with hyphens to prevent syntax errors
-        import re
-
-        # Quote any word containing a hyphen
-        return re.sub(r"(\S*-\S*)", r'"\1"', query)
-
     def cmd_search(self, args) -> int:
         """Full-text search."""
         self._ensure_db()
@@ -167,7 +153,7 @@ class ReadOnlyCLI:
             )
 
             return self.output({"query": args.query, "count": len(results), "results": results})
-        except Exception as e:
+        except (sqlite3.OperationalError, ValueError) as e:
             return self.error(
                 "SEARCH_FAILED",
                 str(e),

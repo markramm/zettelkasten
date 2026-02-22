@@ -454,15 +454,68 @@ class TestFTS5EdgeCases:
         assert len(results) == 1
 
     def test_empty_query(self, integration_env):
-        """Empty query should return empty results, not error."""
+        """Empty query raises OperationalError from FTS5."""
+        import sqlite3
+
         env = integration_env
 
-        # This should not raise an exception
-        try:
-            results = env["search_service"].search("")
-        except Exception:
-            # Empty query might raise, which is acceptable
-            pass
+        with pytest.raises(sqlite3.OperationalError):
+            env["search_service"].search("")
+
+    def test_unicode_search(self, integration_env):
+        """Unicode content can be indexed and searched."""
+        env = integration_env
+
+        env["kb_service"].create_entry(
+            kb_name="test-research",
+            entry_id="unicode-entry",
+            title="Política económica",
+            entry_type="theme",
+            body="La política económica afecta a todos los ciudadanos.",
+        )
+
+        results = env["search_service"].search("política")
+        assert len(results) == 1
+        assert results[0]["id"] == "unicode-entry"
+
+    def test_no_results_returns_empty_list(self, integration_env):
+        """Query with no matches returns empty list, not None or error."""
+        env = integration_env
+
+        results = env["search_service"].search("xyznonexistent99")
+        assert results == []
+
+    def test_search_with_invalid_date_range(self, integration_env):
+        """Search with reversed date range returns no results."""
+        env = integration_env
+
+        env["kb_service"].create_entry(
+            kb_name="test-research",
+            entry_id="dated-entry",
+            title="Dated Event",
+            entry_type="event",
+            body="An event that happened.",
+        )
+
+        results = env["search_service"].search(
+            "Dated", date_from="2025-12-31", date_to="2020-01-01"
+        )
+        assert results == []
+
+    def test_search_invalid_mode_falls_back(self, integration_env):
+        """Invalid mode string falls back to keyword search."""
+        env = integration_env
+
+        env["kb_service"].create_entry(
+            kb_name="test-research",
+            entry_id="mode-test",
+            title="Mode Test Entry",
+            entry_type="theme",
+            body="Testing mode fallback.",
+        )
+
+        results = env["search_service"].search("Mode", mode="nonexistent")
+        assert len(results) == 1
 
 
 class TestMigrationIntegration:

@@ -150,6 +150,17 @@ class TestEntryText:
         text = _entry_text(entry)
         assert text == "Only Title"
 
+    def test_all_fields_empty(self):
+        """All-empty entry produces empty string."""
+        entry = {"title": None, "summary": None, "body": None}
+        text = _entry_text(entry)
+        assert text == ""
+
+    def test_empty_dict(self):
+        """Missing keys produce empty string."""
+        text = _entry_text({})
+        assert text == ""
+
 
 class TestEmbeddingService:
     """Test EmbeddingService operations."""

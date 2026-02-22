@@ -12,6 +12,7 @@ Documentation: https://github.com/markramm/zettelkasten/blob/main/docs/ARCHITECT
 
 import argparse
 import json
+import sqlite3
 import sys
 from typing import Any
 
@@ -114,14 +115,6 @@ class FullAccessCLI:
             )
         return self.output({"kbs": kbs, "total": len(kbs)})
 
-    def _sanitize_fts_query(self, query: str) -> str:
-        """Sanitize query for FTS5 to avoid syntax errors."""
-        if any(op in query.upper() for op in [" AND ", " OR ", " NOT ", '"']):
-            return query
-        import re
-
-        return re.sub(r"(\S*-\S*)", r'"\1"', query)
-
     def cmd_search(self, args) -> int:
         """Full-text search."""
         self._ensure_db()
@@ -146,18 +139,23 @@ class FullAccessCLI:
 
         try:
             tags = args.tags.split(",") if args.tags else None
-            sanitized_query = self._sanitize_fts_query(args.query)
-            results = self.db.search(
-                query=sanitized_query,
+            mode = getattr(args, "mode", "keyword") or "keyword"
+
+            from .services.search_service import SearchService
+
+            search_svc = SearchService(self.db)
+            results = search_svc.search(
+                query=args.query,
                 kb_name=args.kb,
                 entry_type=args.type,
                 tags=tags,
                 date_from=args.date_from,
                 date_to=args.date_to,
                 limit=args.limit,
+                mode=mode,
             )
             return self.output({"query": args.query, "count": len(results), "results": results})
-        except Exception as e:
+        except (sqlite3.OperationalError, ValueError) as e:
             return self.error(
                 "SEARCH_FAILED",
                 str(e),
@@ -502,6 +500,12 @@ Docs: {DOCS_URL}/ARCHITECTURE.md
     p.add_argument("--from", dest="date_from")
     p.add_argument("--to", dest="date_to")
     p.add_argument("--limit", type=int, default=20)
+    p.add_argument(
+        "--mode",
+        choices=["keyword", "semantic", "hybrid"],
+        default="keyword",
+        help="Search mode (keyword, semantic, hybrid)",
+    )
 
     # READ: get
     p = subs.add_parser("get", help="Get entry")
