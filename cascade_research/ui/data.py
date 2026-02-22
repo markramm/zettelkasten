@@ -87,8 +87,9 @@ def search(
     date_to: str | None = None,
     limit: int = 50,
     mode: str = "keyword",
+    expand: bool = False,
 ) -> list[dict[str, Any]]:
-    """Full-text search with optional semantic/hybrid mode."""
+    """Full-text search with optional semantic/hybrid mode and query expansion."""
     db = _get_db()
     if not db:
         return []
@@ -96,7 +97,9 @@ def search(
     from cascade_research.services.search_service import SearchService
 
     try:
-        search_svc = SearchService(db)
+        config = _get_config()
+        settings = config.settings if config else None
+        search_svc = SearchService(db, settings=settings)
         return search_svc.search(
             query=query,
             kb_name=kb_name if kb_name != "All KBs" else None,
@@ -106,6 +109,7 @@ def search(
             date_to=date_to,
             limit=limit,
             mode=mode,
+            expand=expand,
         )
     except Exception as e:
         st.error(f"Search error: {e}")
@@ -143,17 +147,8 @@ def get_tags(kb_name: str | None = None, limit: int = 100) -> list[dict[str, Any
     if not db:
         return []
 
-    query = """
-        SELECT t.name, COUNT(*) as count
-        FROM tag t
-        JOIN entry_tag et ON t.id = et.tag_id
-        {} GROUP BY t.name ORDER BY count DESC LIMIT ?
-    """.format("WHERE et.kb_name = ?" if kb_name and kb_name != "All KBs" else "")
-
-    params = (kb_name, limit) if kb_name and kb_name != "All KBs" else (limit,)
-    rows = db.conn.execute(query, params).fetchall()
-
-    return [{"name": r["name"], "count": r["count"]} for r in rows]
+    effective_kb = kb_name if kb_name and kb_name != "All KBs" else None
+    return db.get_tags_as_dicts(kb_name=effective_kb, limit=limit)
 
 
 @st.cache_data(ttl=300)
@@ -163,16 +158,7 @@ def get_actors(limit: int = 100) -> list[dict[str, Any]]:
     if not db:
         return []
 
-    query = """
-        SELECT actor_name, COUNT(*) as mentions
-        FROM entry_actor
-        GROUP BY actor_name
-        ORDER BY mentions DESC
-        LIMIT ?
-    """
-    rows = db.conn.execute(query, (limit,)).fetchall()
-
-    return [{"name": r["actor_name"], "mentions": r["mentions"]} for r in rows]
+    return db.get_actors_with_counts(limit=limit)
 
 
 @st.cache_data(ttl=60)

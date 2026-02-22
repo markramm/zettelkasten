@@ -30,6 +30,7 @@ with st.form("search_form"):
             index=0,
             horizontal=True,
         )
+        expand_query = st.checkbox("AI Expand", value=False, help="Use AI to expand search terms")
 
     # Filters in expander
     with st.expander("Advanced Filters", expanded=False):
@@ -66,6 +67,7 @@ if query or submitted:
                 date_to=date_to.isoformat() if date_to else None,
                 limit=limit,
                 mode=search_mode,
+                expand=expand_query,
             )
 
         st.divider()

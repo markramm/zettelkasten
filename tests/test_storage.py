@@ -29,14 +29,21 @@ class TestCascadeDB:
     def test_create_database(self, db):
         """Test database creation."""
         # Tables should exist
-        tables = db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-        table_names = [t[0] for t in tables]
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        table_names = inspector.get_table_names()
 
         assert "kb" in table_names
         assert "entry" in table_names
-        assert "entry_fts" in table_names
         assert "tag" in table_names
         assert "link" in table_names
+
+        # Virtual tables are in sqlite_master but not in SQLAlchemy inspector
+        row = db.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='entry_fts'"
+        ).fetchone()
+        assert row is not None
 
     def test_register_kb(self, db):
         """Test KB registration."""
@@ -265,7 +272,7 @@ class TestKBRepository:
         """Test listing all entries."""
         # Create some entries
         for i in range(3):
-            event = EventEntry.create(date=f"2025-01-{10+i:02d}", title=f"Event {i}", body="")
+            event = EventEntry.create(date=f"2025-01-{10 + i:02d}", title=f"Event {i}", body="")
             events_kb.save(event)
 
         entries = list(events_kb.list_entries())
@@ -306,7 +313,7 @@ class TestIndexManager:
             repo = KBRepository(kb_config)
             for i in range(5):
                 event = EventEntry.create(
-                    date=f"2025-01-{10+i:02d}",
+                    date=f"2025-01-{10 + i:02d}",
                     title=f"Event {i}",
                     body=f"Body content for event {i}.",
                     importance=5 + i,

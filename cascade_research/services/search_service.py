@@ -6,13 +6,13 @@ Used by API, CLI, and UI layers.
 """
 
 import re
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from ..storage.database import CascadeDB
 
 
-class SearchMode(str, Enum):
+class SearchMode(StrEnum):
     """Search mode for queries."""
 
     KEYWORD = "keyword"
@@ -29,10 +29,35 @@ class SearchService:
     - Full-text search with filters
     - Timeline queries
     - Tag and actor analytics
+    - AI-powered query expansion
     """
 
-    def __init__(self, db: CascadeDB):
+    def __init__(self, db: CascadeDB, settings: Any | None = None):
         self.db = db
+        self._settings = settings
+        self._expansion_service = None
+
+    def _get_expansion_service(self):
+        """Lazy-load QueryExpansionService from settings."""
+        if self._expansion_service is not None:
+            return self._expansion_service
+
+        if self._settings is None:
+            return None
+
+        from .query_expansion_service import QueryExpansionService, is_available
+
+        provider = getattr(self._settings, "ai_provider", "stub")
+        if not is_available(provider):
+            return None
+
+        self._expansion_service = QueryExpansionService(
+            provider=provider,
+            model=getattr(self._settings, "ai_model", ""),
+            api_key=getattr(self._settings, "ai_api_key", ""),
+            api_base=getattr(self._settings, "ai_api_base", ""),
+        )
+        return self._expansion_service
 
     # =========================================================================
     # Query Sanitization
@@ -80,6 +105,7 @@ class SearchService:
         offset: int = 0,
         sanitize: bool = True,
         mode: str | SearchMode = SearchMode.KEYWORD,
+        expand: bool = False,
     ) -> list[dict[str, Any]]:
         """
         Search across entries.
@@ -95,6 +121,7 @@ class SearchService:
             offset: Pagination offset
             sanitize: Whether to sanitize query for FTS5 (default True)
             mode: Search mode - keyword, semantic, or hybrid
+            expand: Whether to use AI query expansion for additional terms
 
         Returns:
             List of matching entries with snippets and rank
@@ -110,19 +137,33 @@ class SearchService:
         if kb_name == "All KBs":
             kb_name = None
 
+        # Apply query expansion to the FTS5 query (keyword leg only)
+        expanded_query = self._expand_query(query) if expand else query
+
         if mode == SearchMode.SEMANTIC:
+            # Semantic uses original natural language query, not expanded
             return self._semantic_search(query, kb_name, limit)
         elif mode == SearchMode.HYBRID:
             return self._hybrid_search(
-                query, kb_name, entry_type, tags, date_from, date_to, limit, offset, sanitize
+                query,
+                kb_name,
+                entry_type,
+                tags,
+                date_from,
+                date_to,
+                limit,
+                offset,
+                sanitize,
+                expanded_query=expanded_query,
             )
 
         # Default: keyword search
+        kw_query = expanded_query
         if sanitize:
-            query = self.sanitize_fts_query(query)
+            kw_query = self.sanitize_fts_query(kw_query)
 
         return self.db.search(
-            query=query,
+            query=kw_query,
             kb_name=kb_name,
             entry_type=entry_type,
             tags=tags,
@@ -131,6 +172,20 @@ class SearchService:
             limit=limit,
             offset=offset,
         )
+
+    def _expand_query(self, query: str) -> str:
+        """Expand query with AI-generated terms, returning OR-combined FTS5 query."""
+        svc = self._get_expansion_service()
+        if svc is None:
+            return query
+
+        terms = svc.expand(query)
+        if not terms:
+            return query
+
+        # Combine: original query OR term1 OR term2 ...
+        parts = [query] + terms
+        return " OR ".join(parts)
 
     def _semantic_search(
         self,
@@ -161,6 +216,7 @@ class SearchService:
         limit: int = 50,
         offset: int = 0,
         sanitize: bool = True,
+        expanded_query: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Hybrid search using Reciprocal Rank Fusion (RRF).
@@ -168,8 +224,9 @@ class SearchService:
         Combines FTS5 keyword results with vector similarity results.
         Falls back to keyword-only if no embeddings exist.
         """
-        # Get keyword results
-        kw_query = self.sanitize_fts_query(query) if sanitize else query
+        # Get keyword results — use expanded query for FTS5 leg if available
+        fts_query = expanded_query if expanded_query else query
+        kw_query = self.sanitize_fts_query(fts_query) if sanitize else fts_query
         keyword_results = self.db.search(
             query=kw_query,
             kb_name=kb_name,
@@ -264,7 +321,7 @@ class SearchService:
 
         # Add actors to each result
         for result in results:
-            actors = self.db.conn.execute(
+            actors = self.db.conn.execute(  # raw SQL for performance in tight loop
                 "SELECT actor_name FROM entry_actor WHERE entry_id = ? AND kb_name = ?",
                 (result["id"], result["kb_name"]),
             ).fetchall()
@@ -296,27 +353,7 @@ class SearchService:
         if kb_name == "All KBs":
             kb_name = None
 
-        if kb_name:
-            query = """
-                SELECT actor_name, COUNT(*) as mentions
-                FROM entry_actor
-                WHERE kb_name = ?
-                GROUP BY actor_name
-                ORDER BY mentions DESC
-                LIMIT ?
-            """
-            rows = self.db.conn.execute(query, (kb_name, limit)).fetchall()
-        else:
-            query = """
-                SELECT actor_name, COUNT(*) as mentions
-                FROM entry_actor
-                GROUP BY actor_name
-                ORDER BY mentions DESC
-                LIMIT ?
-            """
-            rows = self.db.conn.execute(query, (limit,)).fetchall()
-
-        return [{"name": r["actor_name"], "mentions": r["mentions"]} for r in rows]
+        return self.db.get_actors_with_counts(kb_name=kb_name, limit=limit)
 
     def get_most_linked(self, kb_name: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """Get most referenced entries."""

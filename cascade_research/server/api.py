@@ -22,198 +22,30 @@ from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 
 from ..config import CascadeConfig, load_config
 from ..models import EventEntry, ResearchEntry
 from ..storage.database import CascadeDB
 from ..storage.index import IndexManager
 from ..storage.repository import KBRepository
-
-# =============================================================================
-# Pydantic Models for API
-# =============================================================================
-
-
-class KBInfo(BaseModel):
-    """Knowledge base information."""
-
-    name: str
-    type: str
-    path: str
-    entries: int
-    indexed: bool
-
-
-class KBListResponse(BaseModel):
-    """Response for listing knowledge bases."""
-
-    kbs: list[KBInfo]
-    total: int
-
-
-class SearchResult(BaseModel):
-    """Single search result."""
-
-    id: str
-    kb_name: str
-    entry_type: str
-    title: str
-    snippet: str | None = None
-    date: str | None = None
-    importance: int | None = None
-    tags: list[str] = []
-
-
-class SearchResponse(BaseModel):
-    """Response for search queries."""
-
-    query: str
-    count: int
-    results: list[SearchResult]
-
-
-class EntryBase(BaseModel):
-    """Base fields for entries."""
-
-    title: str
-    body: str | None = None
-    tags: list[str] = []
-    importance: int | None = Field(None, ge=1, le=10)
-
-
-class EventCreate(EntryBase):
-    """Fields for creating an event."""
-
-    date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
-    actors: list[str] = []
-    status: str = "confirmed"
-
-
-class ActorCreate(EntryBase):
-    """Fields for creating an actor."""
-
-    role: str | None = None
-
-
-class EntryResponse(BaseModel):
-    """Full entry response."""
-
-    id: str
-    kb_name: str
-    entry_type: str
-    title: str
-    body: str | None = None
-    summary: str | None = None
-    date: str | None = None
-    importance: int | None = None
-    status: str | None = None
-    tags: list[str] = []
-    actors: list[str] = []
-    sources: list[dict] = []
-    outlinks: list[dict] = []
-    backlinks: list[dict] = []
-    file_path: str
-    created_at: str | None = None
-    updated_at: str | None = None
-
-
-class TimelineEvent(BaseModel):
-    """Timeline event."""
-
-    id: str
-    date: str
-    title: str
-    importance: int
-    actors: list[str] = []
-    tags: list[str] = []
-
-
-class TimelineResponse(BaseModel):
-    """Response for timeline queries."""
-
-    count: int
-    date_from: str | None
-    date_to: str | None
-    events: list[TimelineEvent]
-
-
-class TagCount(BaseModel):
-    """Tag with count."""
-
-    name: str
-    count: int
-
-
-class TagsResponse(BaseModel):
-    """Response for tags list."""
-
-    count: int
-    tags: list[TagCount]
-
-
-class ActorCount(BaseModel):
-    """Actor with mention count."""
-
-    name: str
-    mentions: int
-
-
-class ActorsResponse(BaseModel):
-    """Response for actors list."""
-
-    count: int
-    actors: list[ActorCount]
-
-
-class StatsResponse(BaseModel):
-    """Index statistics."""
-
-    total_entries: int
-    kbs: dict = {}
-    total_tags: int = 0
-    total_links: int = 0
-
-
-class CreateResponse(BaseModel):
-    """Response for create operations."""
-
-    created: bool
-    id: str
-    kb_name: str
-    file_path: str
-
-
-class UpdateResponse(BaseModel):
-    """Response for update operations."""
-
-    updated: bool
-    id: str
-
-
-class DeleteResponse(BaseModel):
-    """Response for delete operations."""
-
-    deleted: bool
-    id: str
-
-
-class SyncResponse(BaseModel):
-    """Response for index sync."""
-
-    synced: bool
-    added: int
-    updated: int
-    removed: int
-
-
-class ErrorResponse(BaseModel):
-    """Error response."""
-
-    code: str
-    message: str
-    hint: str | None = None
-
+from .schemas import (
+    ActorCount,
+    ActorsResponse,
+    CreateResponse,
+    DeleteResponse,
+    EntryResponse,
+    KBInfo,
+    KBListResponse,
+    SearchResponse,
+    SearchResult,
+    StatsResponse,
+    SyncResponse,
+    TagCount,
+    TagsResponse,
+    TimelineEvent,
+    TimelineResponse,
+    UpdateResponse,
+)
 
 # =============================================================================
 # Application Setup
@@ -304,12 +136,12 @@ def search(
     date_to: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     limit: int = Query(20, ge=1, le=100),
     mode: str = Query("keyword", description="Search mode: keyword, semantic, hybrid"),
+    expand: bool = Query(False, description="Use AI query expansion for additional search terms"),
     db: CascadeDB = Depends(get_db),
 ):
     """Full-text search across knowledge bases."""
     # Check index has entries
-    row = db.conn.execute("SELECT COUNT(*) FROM entry").fetchone()
-    if row[0] == 0:
+    if db.count_entries() == 0:
         raise HTTPException(
             status_code=503,
             detail={
@@ -324,7 +156,8 @@ def search(
     try:
         from ..services.search_service import SearchService
 
-        search_svc = SearchService(db)
+        config = get_config()
+        search_svc = SearchService(db, settings=config.settings)
         results = search_svc.search(
             query=q,
             kb_name=kb,
@@ -334,6 +167,7 @@ def search(
             date_to=date_to,
             limit=limit,
             mode=mode,
+            expand=expand,
         )
 
         return SearchResponse(
@@ -584,36 +418,21 @@ def get_tags(
     db: CascadeDB = Depends(get_db),
 ):
     """Get tags with usage counts."""
-    query = """
-        SELECT t.name, COUNT(*) as count
-        FROM tag t
-        JOIN entry_tag et ON t.id = et.tag_id
-        {} GROUP BY t.name ORDER BY count DESC LIMIT ?
-    """.format("WHERE et.kb_name = ?" if kb else "")
-
-    params = (kb, limit) if kb else (limit,)
-    rows = db.conn.execute(query, params).fetchall()
+    tags = db.get_tags_as_dicts(kb_name=kb, limit=limit)
 
     return TagsResponse(
-        count=len(rows), tags=[TagCount(name=r["name"], count=r["count"]) for r in rows]
+        count=len(tags), tags=[TagCount(name=t["name"], count=t["count"]) for t in tags]
     )
 
 
 @app.get("/actors", response_model=ActorsResponse, tags=["Tags & Actors"])
 def get_actors(limit: int = Query(100, ge=1, le=1000), db: CascadeDB = Depends(get_db)):
     """Get actors with mention counts."""
-    query = """
-        SELECT actor_name, COUNT(*) as mentions
-        FROM entry_actor
-        GROUP BY actor_name
-        ORDER BY mentions DESC
-        LIMIT ?
-    """
-    rows = db.conn.execute(query, (limit,)).fetchall()
+    actors = db.get_actors_with_counts(limit=limit)
 
     return ActorsResponse(
-        count=len(rows),
-        actors=[ActorCount(name=r["actor_name"], mentions=r["mentions"]) for r in rows],
+        count=len(actors),
+        actors=[ActorCount(name=a["name"], mentions=a["mentions"]) for a in actors],
     )
 
 

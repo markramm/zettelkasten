@@ -127,8 +127,7 @@ class FullAccessCLI:
                 exit_code=EXIT_USAGE,
             )
 
-        row = self.db.conn.execute("SELECT COUNT(*) FROM entry").fetchone()
-        if row[0] == 0:
+        if self.db.count_entries() == 0:
             return self.error(
                 "INDEX_EMPTY",
                 "Index empty - build it first",
@@ -143,7 +142,8 @@ class FullAccessCLI:
 
             from .services.search_service import SearchService
 
-            search_svc = SearchService(self.db)
+            expand = getattr(args, "expand", False)
+            search_svc = SearchService(self.db, settings=self.config.settings)
             results = search_svc.search(
                 query=args.query,
                 kb_name=args.kb,
@@ -153,6 +153,7 @@ class FullAccessCLI:
                 date_to=args.date_to,
                 limit=args.limit,
                 mode=mode,
+                expand=expand,
             )
             return self.output({"query": args.query, "count": len(results), "results": results})
         except (sqlite3.OperationalError, ValueError) as e:
@@ -209,28 +210,14 @@ class FullAccessCLI:
     def cmd_tags(self, args) -> int:
         """Get tags with counts."""
         self._ensure_db()
-        query = """
-            SELECT t.name, COUNT(*) as count FROM tag t
-            JOIN entry_tag et ON t.id = et.tag_id
-            {} GROUP BY t.name ORDER BY count DESC LIMIT ?
-        """.format("WHERE et.kb_name = ?" if args.kb else "")
-        params = (args.kb, args.limit) if args.kb else (args.limit,)
-        rows = self.db.conn.execute(query, params).fetchall()
-        return self.output({"tags": [{"name": r["name"], "count": r["count"]} for r in rows]})
+        tags = self.db.get_tags_as_dicts(kb_name=args.kb, limit=args.limit)
+        return self.output({"tags": tags})
 
     def cmd_actors(self, args) -> int:
         """Get actors with counts."""
         self._ensure_db()
-        rows = self.db.conn.execute(
-            """
-            SELECT actor_name, COUNT(*) as mentions FROM entry_actor
-            GROUP BY actor_name ORDER BY mentions DESC LIMIT ?
-        """,
-            (args.limit,),
-        ).fetchall()
-        return self.output(
-            {"actors": [{"name": r["actor_name"], "mentions": r["mentions"]} for r in rows]}
-        )
+        actors = self.db.get_actors_with_counts(limit=args.limit)
+        return self.output({"actors": actors})
 
     def cmd_backlinks(self, args) -> int:
         """Get backlinks to entry."""
@@ -505,6 +492,13 @@ Docs: {DOCS_URL}/ARCHITECTURE.md
         choices=["keyword", "semantic", "hybrid"],
         default="keyword",
         help="Search mode (keyword, semantic, hybrid)",
+    )
+    p.add_argument(
+        "--expand",
+        "-x",
+        action="store_true",
+        default=False,
+        help="Use AI query expansion for additional search terms",
     )
 
     # READ: get

@@ -1,11 +1,24 @@
 """
 cascade-research Storage Layer
 
-SQLite FTS5-based indexing for multi-KB search and retrieval.
+SQLAlchemy ORM for standard tables, raw SQL for FTS5/sqlite-vec virtual tables.
 """
 
 from .database import CascadeDB
 from .index import IndexManager
+from .models import KB, Base, Entry, EntryActor, EntryTag, Link, Source, Tag
 from .repository import KBRepository
 
-__all__ = ["CascadeDB", "KBRepository", "IndexManager"]
+__all__ = [
+    "Base",
+    "CascadeDB",
+    "Entry",
+    "EntryActor",
+    "EntryTag",
+    "IndexManager",
+    "KB",
+    "KBRepository",
+    "Link",
+    "Source",
+    "Tag",
+]

@@ -194,11 +194,9 @@ class IndexManager:
                 stats["total_entries"] += kb_stats.get("actual_count", 0)
 
         # Get global counts
-        row = self.db.conn.execute("SELECT COUNT(*) FROM tag").fetchone()
-        stats["total_tags"] = row[0] if row else 0
-
-        row = self.db.conn.execute("SELECT COUNT(*) FROM link").fetchone()
-        stats["total_links"] = row[0] if row else 0
+        global_counts = self.db.get_global_counts()
+        stats["total_tags"] = global_counts["total_tags"]
+        stats["total_links"] = global_counts["total_links"]
 
         return stats
 
@@ -225,9 +223,7 @@ class IndexManager:
 
             # Get all indexed entries for this KB
             indexed = {}
-            for row in self.db.conn.execute(
-                "SELECT id, file_path, indexed_at FROM entry WHERE kb_name = ?", (kb.name,)
-            ).fetchall():
+            for row in self.db.get_entries_for_indexing(kb.name):
                 indexed[row["id"]] = {
                     "file_path": row["file_path"],
                     "indexed_at": row["indexed_at"],
@@ -298,9 +294,7 @@ class IndexManager:
 
             # Get current index state
             indexed = {}
-            for row in self.db.conn.execute(
-                "SELECT id, file_path, indexed_at FROM entry WHERE kb_name = ?", (kb.name,)
-            ).fetchall():
+            for row in self.db.get_entries_for_indexing(kb.name):
                 indexed[row["id"]] = {
                     "file_path": row["file_path"],
                     "indexed_at": row["indexed_at"],

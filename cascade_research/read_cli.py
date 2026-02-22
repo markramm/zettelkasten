@@ -124,8 +124,7 @@ class ReadOnlyCLI:
             )
 
         # Check index
-        row = self.db.conn.execute("SELECT COUNT(*) FROM entry").fetchone()
-        if row[0] == 0:
+        if self.db.count_entries() == 0:
             return self.error(
                 "INDEX_EMPTY",
                 "Search index is empty. Build it first.",
@@ -140,7 +139,8 @@ class ReadOnlyCLI:
 
             from .services.search_service import SearchService
 
-            search_svc = SearchService(self.db)
+            expand = getattr(args, "expand", False)
+            search_svc = SearchService(self.db, settings=self.config.settings)
             results = search_svc.search(
                 query=args.query,
                 kb_name=args.kb,
@@ -150,6 +150,7 @@ class ReadOnlyCLI:
                 date_to=args.date_to,
                 limit=args.limit,
                 mode=mode,
+                expand=expand,
             )
 
             return self.output({"query": args.query, "count": len(results), "results": results})
@@ -215,33 +216,14 @@ class ReadOnlyCLI:
         """Get tags with counts."""
         self._ensure_db()
 
-        query = """
-            SELECT t.name, COUNT(*) as count
-            FROM tag t
-            JOIN entry_tag et ON t.id = et.tag_id
-            {} GROUP BY t.name ORDER BY count DESC LIMIT ?
-        """.format("WHERE et.kb_name = ?" if args.kb else "")
-
-        params = (args.kb, args.limit) if args.kb else (args.limit,)
-        rows = self.db.conn.execute(query, params).fetchall()
-
-        tags = [{"name": r["name"], "count": r["count"]} for r in rows]
+        tags = self.db.get_tags_as_dicts(kb_name=args.kb, limit=args.limit)
         return self.output({"count": len(tags), "tags": tags})
 
     def cmd_actors(self, args) -> int:
         """Get actors with mention counts."""
         self._ensure_db()
 
-        query = """
-            SELECT actor_name, COUNT(*) as mentions
-            FROM entry_actor
-            GROUP BY actor_name
-            ORDER BY mentions DESC
-            LIMIT ?
-        """
-        rows = self.db.conn.execute(query, (args.limit,)).fetchall()
-
-        actors = [{"name": r["actor_name"], "mentions": r["mentions"]} for r in rows]
+        actors = self.db.get_actors_with_counts(limit=args.limit)
         return self.output({"count": len(actors), "actors": actors})
 
     def cmd_backlinks(self, args) -> int:
@@ -320,6 +302,13 @@ Docs: https://github.com/markramm/zettelkasten/blob/main/docs/ARCHITECTURE.md
         choices=["keyword", "semantic", "hybrid"],
         default="keyword",
         help="Search mode (keyword, semantic, hybrid)",
+    )
+    p.add_argument(
+        "--expand",
+        "-x",
+        action="store_true",
+        default=False,
+        help="Use AI query expansion for additional search terms",
     )
 
     # get

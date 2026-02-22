@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 from cascade_research.config import CascadeConfig, KBConfig, KBType, Settings
-from cascade_research.services import KBService, SearchMode, SearchService
+from cascade_research.services import KBService, QueryExpansionService, SearchMode, SearchService
+from cascade_research.services.query_expansion_service import is_available
 from cascade_research.storage.database import CascadeDB
 
 
@@ -291,3 +292,71 @@ class TestKBService:
 
         assert result is True
         assert service.get_entry("delete-test", "test-research") is None
+
+
+class TestQueryExpansionService:
+    """Tests for QueryExpansionService."""
+
+    def test_stub_provider_returns_empty(self):
+        """Stub provider returns empty list."""
+        svc = QueryExpansionService(provider="stub")
+        assert svc.expand("immigration policy") == []
+
+    def test_none_provider_returns_empty(self):
+        """None provider returns empty list."""
+        svc = QueryExpansionService(provider="none")
+        assert svc.expand("immigration policy") == []
+
+    def test_empty_query_returns_empty(self):
+        """Empty query returns empty list."""
+        svc = QueryExpansionService(provider="anthropic")
+        assert svc.expand("") == []
+        assert svc.expand("   ") == []
+
+    def test_unavailable_provider_returns_empty(self):
+        """Unavailable/unknown provider returns empty list."""
+        svc = QueryExpansionService(provider="nonexistent_provider_xyz")
+        assert svc.expand("immigration policy") == []
+
+    def test_is_available_stub(self):
+        """is_available returns True for stub/none."""
+        assert is_available("stub") is True
+        assert is_available("none") is True
+        assert is_available("") is True
+
+    def test_is_available_unknown(self):
+        """is_available returns False for unknown provider."""
+        assert is_available("nonexistent_provider_xyz") is False
+
+    def test_parse_terms_basic(self):
+        """_parse_terms handles basic multi-line output."""
+        terms = QueryExpansionService._parse_terms("term one\nterm two\nterm three")
+        assert terms == ["term one", "term two", "term three"]
+
+    def test_parse_terms_strips_bullets(self):
+        """_parse_terms strips bullet/numbering prefixes."""
+        terms = QueryExpansionService._parse_terms("- term one\n1. term two\n* term three")
+        assert terms == ["term one", "term two", "term three"]
+
+    def test_parse_terms_respects_max(self):
+        """_parse_terms limits to MAX_TERMS."""
+        lines = "\n".join(f"term {i}" for i in range(20))
+        terms = QueryExpansionService._parse_terms(lines)
+        assert len(terms) <= 10
+
+    def test_parse_terms_filters_long(self):
+        """_parse_terms skips terms longer than MAX_TERM_LENGTH."""
+        terms = QueryExpansionService._parse_terms("short\n" + "x" * 100)
+        assert terms == ["short"]
+
+    def test_search_with_expand_stub_works(self, test_db, test_config):
+        """SearchService with expand=True + stub provider works (no-op expansion)."""
+        service = SearchService(test_db, settings=test_config.settings)
+        results = service.search("test", expand=True)
+        assert isinstance(results, list)
+
+    def test_search_expand_without_settings(self, test_db):
+        """SearchService with expand=True but no settings returns normal results."""
+        service = SearchService(test_db)
+        results = service.search("test", expand=True)
+        assert isinstance(results, list)

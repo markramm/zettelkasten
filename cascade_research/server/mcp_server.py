@@ -86,6 +86,10 @@ class CascadeMCPServer:
                             "enum": ["keyword", "semantic", "hybrid"],
                             "description": "Search mode: keyword (FTS5), semantic (vector), or hybrid (both combined). Default: keyword",
                         },
+                        "expand": {
+                            "type": "boolean",
+                            "description": "Use AI query expansion for additional search terms. Default: false",
+                        },
                     },
                     "required": ["query"],
                 },
@@ -274,8 +278,9 @@ class CascadeMCPServer:
         date_to = args.get("date_to")
         limit = args.get("limit", 20)
         mode = args.get("mode", "keyword")
+        expand = args.get("expand", False)
 
-        search_svc = SearchService(self.db)
+        search_svc = SearchService(self.db, settings=self.config.settings)
         results = search_svc.search(
             query=query,
             kb_name=kb_name,
@@ -285,6 +290,7 @@ class CascadeMCPServer:
             date_to=date_to,
             limit=limit,
             mode=mode,
+            expand=expand,
         )
 
         return {"query": query, "count": len(results), "results": results}
@@ -452,31 +458,12 @@ class CascadeMCPServer:
         kb_name = args.get("kb_name")
         prefix = args.get("prefix", "")
 
-        # Query tags
-        if kb_name:
-            query = """
-                SELECT t.name, COUNT(*) as count
-                FROM tag t
-                JOIN entry_tag et ON t.id = et.tag_id
-                WHERE et.kb_name = ?
-                GROUP BY t.name
-                ORDER BY count DESC
-            """
-            rows = self.db.conn.execute(query, (kb_name,)).fetchall()
-        else:
-            query = """
-                SELECT t.name, COUNT(*) as count
-                FROM tag t
-                JOIN entry_tag et ON t.id = et.tag_id
-                GROUP BY t.name
-                ORDER BY count DESC
-            """
-            rows = self.db.conn.execute(query).fetchall()
+        tag_dicts = self.db.get_tags_as_dicts(kb_name=kb_name)
 
         tags = [
-            {"tag": row["name"], "count": row["count"]}
-            for row in rows
-            if row["name"].startswith(prefix)
+            {"tag": t["name"], "count": t["count"]}
+            for t in tag_dicts
+            if t["name"].startswith(prefix)
         ]
 
         return {"tag_count": len(tags), "tags": tags}
@@ -485,16 +472,9 @@ class CascadeMCPServer:
         """Get all actors with mention counts."""
         limit = args.get("limit", 100)
 
-        query = """
-            SELECT actor_name, COUNT(*) as mentions
-            FROM entry_actor
-            GROUP BY actor_name
-            ORDER BY mentions DESC
-            LIMIT ?
-        """
-        rows = self.db.conn.execute(query, (limit,)).fetchall()
+        actor_dicts = self.db.get_actors_with_counts(limit=limit)
 
-        actors = [{"actor": row["actor_name"], "mentions": row["mentions"]} for row in rows]
+        actors = [{"actor": a["name"], "mentions": a["mentions"]} for a in actor_dicts]
 
         return {"actor_count": len(actors), "actors": actors}
 

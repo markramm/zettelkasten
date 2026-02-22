@@ -54,13 +54,13 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
 ## Current Test Status
 
 ```
-106 tests passing, 2 skipped (fastapi not installed)
+136 tests passing, 3 skipped (fastapi/typer not installed)
 ├── test_agent_cli.py: 15 tests
 ├── test_config.py: 15 tests
 ├── test_integration.py: 17 tests
 ├── test_migrations.py: 11 tests
 ├── test_models.py: 15 tests
-├── test_services.py: 18 tests
+├── test_services.py: 42 tests (including 12 query expansion tests)
 ├── test_storage.py: 15 tests
 ├── test_rest_api.py: 12 tests (skipped without fastapi)
 └── test_mcp_server.py: 24 tests (skipped without fastapi)
@@ -105,8 +105,10 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
   - Replaced print() with logging in storage modules
   - Configurable log levels
   - Module-specific loggers
-- [ ] **Refactor Large Files** — Deferred (functional, not urgent)
-  - api.py and database.py work well as-is
+- [x] **Refactor Large Files** — Completed
+  - `cli.py` (992 lines) → `cli/` package (4 files: `__init__.py`, `kb_commands.py`, `index_commands.py`, `search_commands.py`)
+  - `server/api.py` (658 lines) → extracted Pydantic models to `server/schemas.py` (~475 lines remaining)
+  - `storage/database.py` (766 lines) → extracted SQL DDL to `storage/schema.py` (~630 lines remaining)
 
 **Priority 4 — Code Quality & Open Source:** ✓ Complete
 - [x] **GitHub Actions CI** — `.github/workflows/ci.yml`
@@ -150,12 +152,15 @@ Multi-KB research infrastructure for citizen journalists and AI agents. Fork of 
   - Side-by-side live markdown preview
   - Saves via KBService with automatic re-indexing
 
-### Phase 6: Semantic Search
+### Phase 6: Semantic Search ✓ Complete
 
-- [ ] Vector embeddings for entries
-- [ ] sqlite-vss integration (local-first)
-- [ ] Hybrid search (FTS5 + vector similarity)
-- [ ] AI-powered query expansion
+- [x] Vector embeddings for entries — `services/embedding_service.py`
+- [x] sqlite-vec integration (local-first) — via `storage/database.py` vec_entry table
+- [x] Hybrid search (FTS5 + vector similarity) — Reciprocal Rank Fusion in `services/search_service.py`
+- [x] AI-powered query expansion — `services/query_expansion_service.py`
+  - Supports Anthropic and OpenAI providers
+  - `--expand` / `-x` flag on all search interfaces (CLI, API, MCP, UI)
+  - Graceful fallback for stub/none providers or missing SDKs
 
 ### Phase 7: Collaboration
 
@@ -208,15 +213,25 @@ settings:
 cascade_research/
 ├── config.py           # Configuration loading and validation
 ├── models.py           # EventEntry, ResearchEntry models
-├── cli.py              # Typer CLI (cascade-research)
+├── cli/                # Typer CLI (cascade-research)
+│   ├── __init__.py     # App setup, repo/auth/get/config/serve/mcp commands
+│   ├── kb_commands.py  # KB management (list, add, remove, discover, validate)
+│   ├── index_commands.py # Index management (build, sync, stats, embed, health)
+│   └── search_commands.py # Search command with file fallback
 ├── read_cli.py         # Read-only agent CLI (crk-read)
 ├── write_cli.py        # Full access agent CLI (crk)
-├── mcp_server.py       # MCP protocol server
+├── server/
+│   ├── api.py          # FastAPI REST server
+│   ├── schemas.py      # Pydantic models for API
+│   └── mcp_server.py   # MCP protocol server
 ├── services/
 │   ├── kb_service.py   # KB operations (CRUD, index)
-│   └── search_service.py # Search with FTS5 sanitization
+│   ├── search_service.py # Search with FTS5 sanitization + hybrid/expansion
+│   ├── embedding_service.py # Vector embeddings via sentence-transformers
+│   └── query_expansion_service.py # AI-powered query expansion
 └── storage/
     ├── database.py     # SQLite FTS5 operations
+    ├── schema.py       # SQL DDL for core schema
     ├── repository.py   # File-based KB operations
     ├── index.py        # Indexing and sync
     └── migrations.py   # Schema versioning
