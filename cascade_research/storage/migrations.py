@@ -16,7 +16,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Current schema version
-CURRENT_VERSION = 2
+CURRENT_VERSION = 3
 
 
 @dataclass
@@ -52,6 +52,78 @@ MIGRATIONS: list[Migration] = [
         """,
         down="""
         DROP TABLE IF EXISTS vec_entry;
+        """,
+    ),
+    Migration(
+        version=3,
+        description="Add collaboration tables (user, repo, workspace_repo, entry_version)",
+        up="""
+        CREATE TABLE IF NOT EXISTS user (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            github_login TEXT NOT NULL UNIQUE,
+            github_id INTEGER NOT NULL UNIQUE,
+            display_name TEXT,
+            avatar_url TEXT,
+            email TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            last_seen TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS repo (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            local_path TEXT NOT NULL,
+            remote_url TEXT,
+            owner TEXT,
+            visibility TEXT DEFAULT 'public',
+            default_branch TEXT DEFAULT 'main',
+            upstream_repo_id INTEGER REFERENCES repo(id) ON DELETE SET NULL,
+            is_fork INTEGER DEFAULT 0,
+            last_synced_commit TEXT,
+            last_synced TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS workspace_repo (
+            user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+            repo_id INTEGER NOT NULL REFERENCES repo(id) ON DELETE CASCADE,
+            added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            role TEXT DEFAULT 'subscriber',
+            auto_sync INTEGER DEFAULT 1,
+            sync_interval INTEGER DEFAULT 3600,
+            PRIMARY KEY (user_id, repo_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS entry_version (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entry_id TEXT NOT NULL,
+            kb_name TEXT NOT NULL,
+            commit_hash TEXT NOT NULL,
+            author_name TEXT,
+            author_email TEXT,
+            author_github_login TEXT,
+            commit_date TEXT NOT NULL,
+            message TEXT,
+            diff_summary TEXT,
+            change_type TEXT,
+            FOREIGN KEY (entry_id, kb_name) REFERENCES entry(id, kb_name) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_entry_version_entry ON entry_version(entry_id, kb_name);
+        CREATE INDEX IF NOT EXISTS idx_entry_version_commit ON entry_version(commit_hash);
+        CREATE INDEX IF NOT EXISTS idx_entry_version_author ON entry_version(author_github_login);
+        CREATE INDEX IF NOT EXISTS idx_entry_version_date ON entry_version(commit_date);
+        CREATE INDEX IF NOT EXISTS idx_repo_name ON repo(name);
+        CREATE INDEX IF NOT EXISTS idx_user_github_login ON user(github_login);
+
+        INSERT OR IGNORE INTO user (github_login, github_id, display_name)
+        VALUES ('local', 0, 'Local User');
+        """,
+        down="""
+        DROP TABLE IF EXISTS entry_version;
+        DROP TABLE IF EXISTS workspace_repo;
+        DROP TABLE IF EXISTS repo;
+        DROP TABLE IF EXISTS user;
         """,
     ),
 ]

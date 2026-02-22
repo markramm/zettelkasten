@@ -312,6 +312,32 @@ def get_github_token() -> str | None:
     return None
 
 
+def get_github_user_info(token: str) -> dict | None:
+    """
+    Get GitHub user info from a token.
+
+    Returns dict with: login, id, name, email, avatar_url
+    Or None if the request fails.
+    """
+    if not HAS_HTTPX:
+        return None
+
+    try:
+        with httpx.Client() as client:
+            response = client.get(
+                f"{GITHUB_API_URL}/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                },
+            )
+            if response.status_code == 200:
+                return response.json()
+    except Exception:
+        pass
+    return None
+
+
 def clone_private_repo(repo_url: str, local_path: Path, branch: str = "main") -> tuple[bool, str]:
     """
     Clone a private repository using GitHub OAuth token.

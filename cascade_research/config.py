@@ -251,9 +251,13 @@ class Settings:
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_dimensions: int = 384
     search_mode: str = "keyword"
+    workspace_path: Path = field(
+        default_factory=lambda: Path.home() / ".cascade-research" / "repos"
+    )
 
     def __post_init__(self):
         self.index_path = Path(self.index_path).expanduser().resolve()
+        self.workspace_path = Path(self.workspace_path).expanduser().resolve()
         # Load from environment if not set
         if not self.ai_api_key:
             self.ai_api_key = os.environ.get("OPENAI_API_KEY", "") or os.environ.get(

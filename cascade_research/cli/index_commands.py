@@ -18,6 +18,9 @@ console = Console()
 def index_build(
     kb_name: str | None = typer.Argument(None, help="KB to index (all if omitted)"),
     force: bool = typer.Option(False, "--force", "-f", help="Force full reindex"),
+    with_attribution: bool = typer.Option(
+        False, "--with-attribution", help="Extract git history for attribution"
+    ),
 ):
     """Build or rebuild the search index."""
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
@@ -41,6 +44,13 @@ def index_build(
         console.print("[yellow]No knowledge bases configured.[/yellow]")
         return
 
+    git_service = None
+    if with_attribution:
+        from ..services.git_service import GitService
+
+        git_service = GitService()
+        console.print("[dim]Building index with git attribution...[/dim]")
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -61,7 +71,12 @@ def index_build(
 
                 return update_progress
 
-            count = index_mgr.index_kb(kb.name, make_progress_callback(task))
+            if with_attribution and git_service:
+                count = index_mgr.index_with_attribution(
+                    kb.name, git_service, progress_callback=make_progress_callback(task)
+                )
+            else:
+                count = index_mgr.index_kb(kb.name, make_progress_callback(task))
             progress.update(task, description=f"[green]✓[/green] {kb.name}: {count} entries")
 
     console.print("\n[green]Index build complete.[/green]")

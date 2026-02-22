@@ -6,13 +6,13 @@ Split into submodules for maintainability:
 - kb_commands: Knowledge base management (list, add, remove, discover, validate)
 - index_commands: Search index management (build, sync, stats, embed, health)
 - search_commands: Search command with file fallback
+- repo_commands: Repository collaboration (subscribe, fork, sync, unsubscribe, status)
 """
 
 from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
 from ..config import (
     CONFIG_FILE,
@@ -25,6 +25,7 @@ from ..config import (
 from ..models import EventEntry, ResearchEntry
 from .index_commands import index_app
 from .kb_commands import kb_app
+from .repo_commands import repo_collab_app
 from .search_commands import register_search_command
 
 app = typer.Typer(
@@ -38,9 +39,9 @@ console = Console()
 app.add_typer(kb_app, name="kb")
 app.add_typer(index_app, name="index")
 
-# Repository management commands
-repo_app = typer.Typer(help="Repository management (multi-KB repos)")
-app.add_typer(repo_app, name="repo")
+# Repository management — collaboration app with subscribe/fork/sync/unsubscribe/status/list
+# Plus legacy add/remove commands added below
+app.add_typer(repo_collab_app, name="repo")
 
 # Authentication commands
 auth_app = typer.Typer(help="Authentication (GitHub OAuth)")
@@ -144,41 +145,11 @@ def serve(
 
 
 # =============================================================================
-# Repository Commands
+# Legacy Repository Commands (add/remove for local repos)
 # =============================================================================
 
 
-@repo_app.command("list")
-def repo_list():
-    """List all configured repositories."""
-    config = load_config()
-
-    if not config.repositories:
-        console.print("[yellow]No repositories configured.[/yellow]")
-        console.print("Add a repo with: cascade-research repo add <path> --name <name>")
-        return
-
-    table = Table(title="Repositories")
-    table.add_column("Name", style="cyan")
-    table.add_column("Path")
-    table.add_column("Remote")
-    table.add_column("Auth")
-    table.add_column("KBs")
-
-    for repo in config.repositories:
-        kbs = config.get_kbs_in_repo(repo.name)
-        kb_count = str(len(kbs)) if kbs else "0"
-        remote = (
-            repo.remote[:40] + "..."
-            if repo.remote and len(repo.remote) > 40
-            else (repo.remote or "-")
-        )
-        table.add_row(repo.name, str(repo.path), remote, repo.auth_method, kb_count)
-
-    console.print(table)
-
-
-@repo_app.command("add")
+@repo_collab_app.command("add")
 def repo_add(
     path: Path = typer.Argument(..., help="Path to the repository"),
     name: str | None = typer.Option(None, "--name", "-n", help="Name for the repo"),
@@ -190,7 +161,7 @@ def repo_add(
         True, "--discover/--no-discover", help="Auto-discover KBs in repo"
     ),
 ):
-    """Add a repository to the registry."""
+    """Add a local repository to the registry."""
     config = load_config()
 
     path = path.expanduser().resolve()
@@ -222,7 +193,7 @@ def repo_add(
     console.print(f"[green]Added repository:[/green] {repo_name}")
 
 
-@repo_app.command("remove")
+@repo_collab_app.command("remove")
 def repo_remove(
     name: str = typer.Argument(..., help="Name of the repository"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
@@ -255,41 +226,6 @@ def repo_remove(
         console.print(f"[dim]Also removed {len(kbs)} KB(s)[/dim]")
 
 
-@repo_app.command("sync")
-def repo_sync(
-    name: str | None = typer.Argument(None, help="Repository to sync (all if omitted)"),
-):
-    """Sync repositories with their remotes (git pull)."""
-    config = load_config()
-
-    if name:
-        repo = config.get_repo(name)
-        if not repo:
-            console.print(f"[red]Error:[/red] Repository '{name}' not found")
-            raise typer.Exit(1)
-        repos = [repo]
-    else:
-        repos = [r for r in config.repositories if r.remote]
-
-    if not repos:
-        console.print("[yellow]No repositories with remotes configured.[/yellow]")
-        return
-
-    from ..github_auth import pull_repo
-
-    for repo in repos:
-        console.print(f"\n[bold]Syncing {repo.name}...[/bold]")
-        if not repo.path.exists():
-            console.print(f"  [yellow]Path does not exist:[/yellow] {repo.path}")
-            continue
-
-        success, message = pull_repo(repo.path)
-        if success:
-            console.print(f"  [green]✓[/green] {message}")
-        else:
-            console.print(f"  [red]✗[/red] {message}")
-
-
 # =============================================================================
 # Authentication Commands
 # =============================================================================
@@ -302,9 +238,37 @@ def auth_status():
 
     valid, message = check_github_auth()
     if valid:
-        console.print(f"[green]✓[/green] {message}")
+        console.print(f"[green]{message}")
     else:
         console.print(f"[yellow]![/yellow] {message}")
+
+
+@auth_app.command("whoami")
+def auth_whoami():
+    """Show current user identity."""
+    from ..storage.database import CascadeDB
+
+    config = load_config()
+    db = CascadeDB(config.settings.index_path)
+    try:
+        from ..services.user_service import UserService
+
+        user_service = UserService(db)
+        user = user_service.get_current_user()
+
+        if user.get("github_id", 0) == 0:
+            console.print("[yellow]Not authenticated with GitHub[/yellow]")
+            console.print("Identity: [bold]local[/bold] (no GitHub auth)")
+            console.print("\nRun 'cascade-research auth github-login' to authenticate.")
+        else:
+            console.print(f"[bold cyan]{user['github_login']}[/bold cyan]")
+            if user.get("display_name"):
+                console.print(f"  Name: {user['display_name']}")
+            if user.get("email"):
+                console.print(f"  Email: {user['email']}")
+            console.print(f"  GitHub ID: {user['github_id']}")
+    finally:
+        db.close()
 
 
 @auth_app.command("github-login")
@@ -319,9 +283,9 @@ def auth_github_login(
 
     success, message = start_oauth_flow(client_id, client_secret)
     if success:
-        console.print(f"[green]✓[/green] {message}")
+        console.print(f"[green]{message}")
     else:
-        console.print(f"[red]✗[/red] {message}")
+        console.print(f"[red]{message}")
         raise typer.Exit(1)
 
 
@@ -356,7 +320,7 @@ def auth_github_setup():
     )
     save_github_auth(auth)
 
-    console.print("\n[green]✓[/green] Credentials saved.")
+    console.print("\n[green]Credentials saved.")
     console.print("Run 'cascade-research auth github-login' to authenticate.")
 
 
@@ -441,7 +405,7 @@ def mcp_setup(
     with open(config_path, "w") as f:
         json.dump(claude_config, f, indent=2)
 
-    console.print(f"[green]✓ MCP server configured in {config_path}[/green]")
+    console.print(f"[green]MCP server configured in {config_path}[/green]")
     console.print("\nRestart Claude Code to load the new MCP server.")
     console.print("\nAvailable tools:")
     console.print("  • kb_list - List knowledge bases")

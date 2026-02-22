@@ -336,6 +336,121 @@ class IndexManager:
 
         return results
 
+    def index_with_attribution(
+        self,
+        kb_name: str,
+        git_service: Any = None,
+        since_commit: str | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> int:
+        """
+        Index a KB with git attribution.
+
+        For each entry file:
+        1. Parse and upsert entry (existing flow)
+        2. git log --follow -> populate entry_version table
+        3. Set entry.created_by = first commit author
+        4. Set entry.modified_by = last commit author
+
+        If since_commit is provided, only process changed files.
+
+        Args:
+            kb_name: KB to index
+            git_service: GitService instance (or duck-typed equivalent)
+            since_commit: Only process files changed since this commit
+            progress_callback: Optional callback(current, total)
+
+        Returns:
+            Number of entries indexed
+        """
+        from ..services.git_service import GitService as GitServiceClass
+
+        if git_service is None:
+            git_service = GitServiceClass()
+
+        kb_config = self.config.get_kb(kb_name)
+        if not kb_config:
+            raise ValueError(f"KB '{kb_name}' not found in config")
+
+        repo = KBRepository(kb_config)
+
+        # Register KB in database
+        self.db.register_kb(
+            name=kb_name,
+            kb_type=kb_config.kb_type,
+            path=str(kb_config.path),
+            description=kb_config.description,
+        )
+
+        # Determine which files to process
+        kb_path = kb_config.path
+        is_git = git_service.is_git_repo(kb_path)
+
+        if since_commit and is_git:
+            # Only changed files
+            changed_files = git_service.get_changed_files(kb_path, since_commit=since_commit)
+            files_to_process = set()
+            for rel_path in changed_files:
+                full_path = kb_path / rel_path
+                if full_path.exists() and full_path.suffix == ".md":
+                    files_to_process.add(full_path)
+        else:
+            files_to_process = None  # Process all
+
+        indexed_count = 0
+        error_count = 0
+
+        for entry, file_path in repo.list_entries():
+            if files_to_process is not None and file_path not in files_to_process:
+                continue
+
+            try:
+                data = self._entry_to_dict(entry, kb_name, file_path)
+                log_entries = []
+
+                # Extract git attribution if available
+                if is_git:
+                    rel_path = str(file_path.relative_to(kb_path))
+                    log_entries = git_service.get_file_log(kb_path, rel_path)
+
+                    if log_entries:
+                        # First commit = created_by, last commit = modified_by
+                        data["created_by"] = log_entries[-1]["author_name"]
+                        data["modified_by"] = log_entries[0]["author_name"]
+
+                # Insert entry first (must exist before entry_version FK)
+                self.db.upsert_entry(data)
+
+                # Then populate entry_version table
+                for i, log_entry in enumerate(log_entries):
+                    change_type = "created" if i == len(log_entries) - 1 else "modified"
+                    self.db.upsert_entry_version(
+                        entry_id=entry.id,
+                        kb_name=kb_name,
+                        commit_hash=log_entry["hash"],
+                        author_name=log_entry["author_name"],
+                        author_email=log_entry["author_email"],
+                        commit_date=log_entry["date"],
+                        message=log_entry["message"],
+                        change_type=change_type,
+                    )
+                indexed_count += 1
+
+                if progress_callback:
+                    progress_callback(indexed_count, 0)
+
+            except Exception as e:
+                logger.error("Failed to index %s: %s", file_path, e)
+                error_count += 1
+
+        # Update KB stats
+        self.db.update_kb_indexed(kb_name, self.db.count_entries(kb_name))
+
+        if error_count > 0:
+            logger.warning("%d entries failed to index with attribution", error_count)
+
+        return indexed_count
+
 
 def create_index(config: CascadeConfig | None = None) -> IndexManager:
     """Create an IndexManager with default configuration."""
